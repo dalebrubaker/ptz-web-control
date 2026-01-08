@@ -63,8 +63,11 @@ function buildIpPacket(viscaPacket) {
 /**
  * Build a complete VISCA over IP packet
  * Wraps the VISCA command in the IP packet format
+ * Set USE_IP_WRAPPER to false to send raw VISCA commands
  */
-function buildPacket(commandBytes, useIpWrapper = true) {
+const USE_IP_WRAPPER = true;  // Try false if camera doesn't respond
+
+function buildPacket(commandBytes, useIpWrapper = USE_IP_WRAPPER) {
     const viscaPacket = Buffer.concat([
         HEADER,
         commandBytes,
