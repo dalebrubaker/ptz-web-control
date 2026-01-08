@@ -10,6 +10,9 @@ const SOCKET = 0;
 const HEADER = Buffer.from([0x81, 0x01, SOCKET, 0x01]);
 const TERMINATOR = 0xFF;
 
+// Sequence number for IP packets
+let sequenceNumber = 0;
+
 // Direction codes for Pan/Tilt (per PDF spec)
 const DIRECTIONS = {
     LEFT: 1,
@@ -23,9 +26,10 @@ const DIRECTIONS = {
 };
 
 /**
- * Build a complete VISCA packet
+ * Build a raw VISCA command packet (without IP wrapper)
+ * This is the standard VISCA format: 81 01 [socket] 01 [command] FF
  */
-function buildPacket(commandBytes) {
+function buildRawViscaPacket(commandBytes) {
     const packet = Buffer.concat([
         HEADER,
         commandBytes,
@@ -35,13 +39,51 @@ function buildPacket(commandBytes) {
 }
 
 /**
+ * Build a VISCA over IP packet with proper wrapper
+ * Per PDF spec: 01 00 [seq] 00 00 [len-hi] [len-lo] [VISCA data]
+ */
+function buildIpPacket(viscaPacket) {
+    const dataLength = viscaPacket.length;
+    const ipHeader = Buffer.from([
+        0x01,           // VISCA over IP header byte 1
+        0x00,           // VISCA over IP header byte 2
+        sequenceNumber & 0xFF,  // Sequence number
+        0x00,           // Reserved
+        0x00,           // Reserved
+        (dataLength >> 8) & 0xFF,  // Data length high byte
+        dataLength & 0xFF          // Data length low byte
+    ]);
+
+    // Increment and wrap sequence number
+    sequenceNumber = (sequenceNumber + 1) & 0xFF;
+
+    return Buffer.concat([ipHeader, viscaPacket]);
+}
+
+/**
+ * Build a complete VISCA over IP packet
+ * Wraps the VISCA command in the IP packet format
+ */
+function buildPacket(commandBytes, useIpWrapper = true) {
+    const viscaPacket = Buffer.concat([
+        HEADER,
+        commandBytes,
+        Buffer.from([TERMINATOR])
+    ]);
+
+    if (useIpWrapper) {
+        return buildIpPacket(viscaPacket);
+    }
+    return viscaPacket;
+}
+
+/**
  * Preset Recall Command
  * Command: 81 01 04 3F 02 [P] FF
  * P = preset number (0x00-0x7F)
  * @param {number} presetNumber - Preset number (1-7 in our config)
  */
 function buildPresetRecall(presetNumber) {
-    // Convert preset number to hex (presetNumber is already the hex value we need)
     const presetByte = presetNumber & 0x7F;
     return buildPacket(Buffer.from([0x04, 0x3F, 0x02, presetByte]));
 }
@@ -73,7 +115,6 @@ function buildTrackingOff() {
  * @param {number} direction - Direction code (1-8)
  */
 function buildPanTilt(panSpeed, tiltSpeed, direction) {
-    // Clamp speeds to valid range
     const p = Math.max(0, Math.min(7, panSpeed)) & 0x7F;
     const t = Math.max(0, Math.min(7, tiltSpeed)) & 0x7F;
     const d = Math.max(1, Math.min(8, direction)) & 0x7F;
@@ -82,12 +123,9 @@ function buildPanTilt(panSpeed, tiltSpeed, direction) {
 
 /**
  * Stop Pan/Tilt movement
- * Uses same command but with no direction (just sends the header pattern to stop)
  */
 function buildPanTiltStop() {
-    // Send the command to stop current movement
-    // Per spec, we can send the pan/tilt command with the stop sequence
-    return buildPacket(Buffer.from([0x06, 0x01, 0, 0, 0])); // Speed 0 = stop
+    return buildPacket(Buffer.from([0x06, 0x01, 0, 0, 0]));
 }
 
 /**
@@ -116,7 +154,6 @@ function buildZoomOut(speed = 4) {
  * Stop Zoom
  */
 function buildZoomStop() {
-    // Send zoom command with speed 0 to stop
     return buildPacket(Buffer.from([0x04, 0x07, 0x00]));
 }
 
@@ -139,6 +176,7 @@ module.exports = {
     buildZoomOut,
     buildZoomStop,
     buildHome,
+    buildRawViscaPacket,  // Export for testing
 
     // Direction constants
     DIRECTIONS
