@@ -4,8 +4,8 @@
  */
 
 // VISCA Header per PDF spec: 0x81 0x01 [socket] 0x01
-// Socket number: 0/1 for first/second camera
-const SOCKET = 0;
+// Socket number: 1 for first camera (per PDF page 3)
+const SOCKET = 1;
 
 const HEADER = Buffer.from([0x81, 0x01, SOCKET, 0x01]);
 const TERMINATOR = 0xFF;
