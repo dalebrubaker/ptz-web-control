@@ -73,30 +73,34 @@ function sendTcpCommand(packet) {
 function sendUdpCommand(packet) {
     return new Promise((resolve, reject) => {
         const client = dgram.createSocket('udp4');
+        let closed = false;
+
+        function closeIfNeeded() {
+            if (!closed) {
+                closed = true;
+                try {
+                    client.close();
+                } catch (e) {
+                    // Ignore close errors
+                }
+            }
+        }
 
         client.send(packet, CAMERA_PORT, CAMERA_IP, (err) => {
             if (err) {
-                client.close();
+                closeIfNeeded();
                 reject(err);
             } else {
-                // Close after a short delay to ensure packet is sent
-                setTimeout(() => {
-                    client.close();
-                    resolve();
-                }, 100);
+                // Resolve immediately - UDP is fire-and-forget
+                closeIfNeeded();
+                resolve();
             }
         });
 
         client.on('error', (err) => {
-            client.close();
+            closeIfNeeded();
             reject(err);
         });
-
-        // UDP timeout fallback
-        setTimeout(() => {
-            client.close();
-            resolve(); // UDP is fire-and-forget, so we just resolve on timeout
-        }, 1000);
     });
 }
 
