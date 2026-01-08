@@ -26,6 +26,13 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 /**
+ * Helper: Get timestamp for logging
+ */
+function logTime() {
+    return new Date().toISOString().split('T')[1].slice(0, -1);
+}
+
+/**
  * Send VISCA command via TCP
  * @param {Buffer} packet - VISCA command packet
  * @returns {Promise<void>}
@@ -43,18 +50,32 @@ function sendTcpCommand(packet) {
 
         client.connect(CAMERA_PORT, CAMERA_IP, () => {
             clearTimeout(timeoutId);
+            console.log(`[${logTime()}] TCP connected to ${CAMERA_IP}:${CAMERA_PORT}`);
             // Send the VISCA packet
             client.write(packet);
 
+            // Listen for response
+            const responseChunks = [];
+            client.on('data', (data) => {
+                responseChunks.push(data);
+                const response = Buffer.concat(responseChunks);
+                console.log(`[${logTime()}] <<< Response hex:`, response.toString('hex'));
+                console.log(`[${logTime()}] <<< Response bytes:`, Array.from(response).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+            });
+
             // Give a small delay for the command to be received, then close
             setTimeout(() => {
+                if (responseChunks.length === 0) {
+                    console.log(`[${logTime()}] <<< No response received`);
+                }
                 client.destroy();
                 resolve();
-            }, 100);
+            }, 500);
         });
 
         client.on('error', (err) => {
             clearTimeout(timeoutId);
+            console.log(`[${logTime()}] TCP error:`, err.message);
             client.destroy();
             reject(err);
         });
@@ -88,16 +109,18 @@ function sendUdpCommand(packet) {
 
         client.send(packet, CAMERA_PORT, CAMERA_IP, (err) => {
             if (err) {
+                console.log(`[${logTime()}] UDP send error:`, err.message);
                 closeIfNeeded();
                 reject(err);
             } else {
-                // Resolve immediately - UDP is fire-and-forget
+                console.log(`[${logTime()}] UDP packet sent to ${CAMERA_IP}:${CAMERA_PORT} (no response expected)`);
                 closeIfNeeded();
                 resolve();
             }
         });
 
         client.on('error', (err) => {
+            console.log(`[${logTime()}] UDP socket error:`, err.message);
             closeIfNeeded();
             reject(err);
         });
@@ -111,15 +134,21 @@ function sendUdpCommand(packet) {
  */
 async function sendCommand(packet) {
     try {
+        // DEBUG: Log the packet being sent
+        console.log(`[${logTime()}] >>> Sending to ${CAMERA_IP}:${CAMERA_PORT} via ${PROTOCOL.toUpperCase()}`);
+        console.log(`[${logTime()}] >>> Packet hex:`, packet.toString('hex'));
+        console.log(`[${logTime()}] >>> Packet bytes:`, Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+
         if (PROTOCOL === 'udp') {
             await sendUdpCommand(packet);
         } else {
             // Default to TCP
             await sendTcpCommand(packet);
         }
+        console.log(`[${logTime()}] >>> Command complete`);
         return { success: true };
     } catch (error) {
-        console.error('Command send error:', error.message);
+        console.error(`[${logTime()}] Command send error:`, error.message);
         return { success: false, error: error.message };
     }
 }
