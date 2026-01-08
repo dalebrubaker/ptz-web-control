@@ -1,0 +1,47 @@
+{
+    "camera": {
+        "ip": "192.168.1.100",
+        "port": 5678,
+        "protocol": "tcp"
+    },
+    "server": {
+        "port": 3000
+    },
+    "presets": {
+        "stage": {
+            "number": 1,
+            "label": "Stage",
+            "tracking": false
+        },
+        "welcome": {
+            "number": 2,
+            "label": "Welcome",
+            "tracking": false
+        },
+        "prayer": {
+            "number": 3,
+            "label": "Prayer (Track)",
+            "tracking": true
+        },
+        "podium": {
+            "number": 4,
+            "label": "Podium (Track)",
+            "tracking": true
+        },
+        "offering": {
+            "number": 5,
+            "label": "Offering",
+            "tracking": false
+        },
+        "widest": {
+            "number": 6,
+            "label": "Widest",
+            "tracking": false
+        },
+        "baptistry": {
+            "number": 7,
+            "label": "Baptistry",
+            "tracking": false
+        }
+    }
+}

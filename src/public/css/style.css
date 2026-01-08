@@ -1,0 +1,327 @@
+/**
+ * PTZ Web Control - Modern Mobile-First Styles
+ */
+
+/* CSS Variables for theming */
+:root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2a2a2a;
+    --bg-tertiary: #3a3a3a;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --accent-color: #4a9eff;
+    --accent-hover: #3a8eef;
+    --success-color: #4ade80;
+    --danger-color: #f87171;
+    --border-radius: 12px;
+    --transition: 150ms ease;
+}
+
+/* Reset and base styles */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+}
+
+/* Container */
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 1rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+header {
+    text-align: center;
+    padding: 1rem 0 1.5rem;
+}
+
+header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* Status indicator */
+.status {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    min-height: 1.5rem;
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+
+.status.visible {
+    opacity: 1;
+}
+
+.status.success {
+    color: var(--success-color);
+}
+
+.status.error {
+    color: var(--danger-color);
+}
+
+/* Main content */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Presets Grid */
+.presets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.75rem;
+}
+
+/* Button base styles */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 60px; /* Minimum touch target */
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-weight: 500;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color var(--transition), transform var(--transition);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+.btn:active {
+    transform: scale(0.96);
+}
+
+/* Primary preset buttons */
+.btn-preset {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.btn-preset:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.btn-preset.tracking {
+    border: 2px solid var(--accent-color);
+}
+
+.btn-preset .preset-label {
+    font-size: 1rem;
+}
+
+.btn-preset .preset-badge {
+    font-size: 0.7rem;
+    padding: 0.125rem 0.5rem;
+    background-color: var(--accent-color);
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-preset.sending {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Primary buttons */
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+/* Secondary buttons */
+.btn-secondary {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 100%;
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-tertiary);
+}
+
+/* Zoom buttons */
+.btn-zoom {
+    background-color: var(--bg-secondary);
+    flex: 1;
+    min-height: 70px;
+    font-size: 1.1rem;
+}
+
+.btn-zoom:hover {
+    background-color: var(--bg-tertiary);
+}
+
+/* Track controls */
+.track-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.track-controls .btn {
+    flex: 1;
+}
+
+/* D-pad / Directional controls */
+.dpad {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+.dpad-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.dpad-btn {
+    width: 70px;
+    height: 70px;
+    min-height: 70px;
+    background-color: var(--bg-secondary);
+    border: none;
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color var(--transition), transform var(--transition);
+    touch-action: manipulation;
+}
+
+.dpad-btn svg {
+    width: 28px;
+    height: 28px;
+}
+
+.dpad-btn:active,
+.dpad-btn.active {
+    background-color: var(--accent-color);
+    transform: scale(0.95);
+}
+
+.dpad-btn.home-btn {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Zoom controls */
+.zoom-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Navigation buttons */
+.nav-buttons {
+    margin-top: auto;
+    padding-top: 1rem;
+}
+
+/* Loading state */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-left: 0.5rem;
+    border: 2px solid var(--text-secondary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (min-width: 480px) {
+    .presets-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .dpad-btn {
+        width: 80px;
+        height: 80px;
+        min-height: 80px;
+    }
+
+    .dpad-btn svg {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+/* Desktop enhancements */
+@media (min-width: 768px) {
+    header h1 {
+        font-size: 1.75rem;
+    }
+
+    .btn {
+        min-height: 64px;
+    }
+
+    .dpad-btn {
+        width: 90px;
+        height: 90px;
+        min-height: 90px;
+    }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
