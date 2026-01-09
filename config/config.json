@@ -1,8 +1,8 @@
 {
     "camera": {
         "ip": "10.0.0.2",
-        "port": 5678,
-        "protocol": "tcp"
+        "port": 52381,
+        "protocol": "udp"
     },
     "server": {
         "port": 3000
