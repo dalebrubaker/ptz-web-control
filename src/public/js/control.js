@@ -3,6 +3,16 @@
  * Handles preset buttons, manual controls, and API communication
  */
 
+/**
+ * PTZ Camera Control - Client-Side JavaScript
+ * Handles preset buttons, manual controls, and API communication
+ */
+
+/**
+ * PTZ Camera Control - Client-Side JavaScript
+ * Handles preset buttons, manual controls, and API communication
+ */
+
 (function() {
     'use strict';
 
@@ -23,6 +33,11 @@
 
     // Status display
     let statusTimeout = null;
+
+    /**
+     * Helper to wait for ms
+     */
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     /**
      * Show status message
@@ -97,7 +112,10 @@
     }
 
     /**
-     * Activate a preset
+     * Activate a preset with Tracking Logic
+     * If tracking is defined:
+     *   On: Call Preset 81 -> Wait -> Call Target
+     *   Off: Call Preset 80 -> Wait -> Call Target
      */
     async function activatePreset(presetKey) {
         const preset = config.presets[presetKey];
@@ -106,227 +124,133 @@
         // Visual feedback
         const btn = document.querySelector(`[data-preset="${presetKey}"]`);
         if (btn) {
-            btn.classList.add('sending');
+            // Note: CSS might not have .sending style anymore but good to keep hook
+            btn.style.opacity = '0.7'; 
         }
 
-        // Send command with tracking toggle
-        const success = await sendCommand('presetWithTracking', {
-            presetNumber: preset.number,
-            tracking: preset.tracking
-        });
+        try {
+            // 1. Handle Tracking State first if defined
+            if (preset.tracking !== undefined) {
+                const trackPreset = preset.tracking ? 81 : 80;
+                // We use the same 'preset' command, assuming the server supports raw preset numbers
+                // or we use a specific 'setTracking' command if the server distinguishes.
+                // Based on requirements: "tracking is set or unset first with preset 80 or 81"
+                
+                // We'll use the generic preset command for 80/81
+                await sendCommand('preset', { presetNumber: trackPreset });
+                
+                // Short delay to ensure camera processes the tracking command
+                await delay(250);
+            }
 
-        // Remove visual feedback
-        if (btn) {
-            btn.classList.remove('sending');
-        }
+            // 2. Recall the actual target preset
+            const success = await sendCommand('preset', { presetNumber: preset.number });
+            
+            if (success) {
+                showStatus(preset.label);
+            }
 
-        if (success) {
-            showStatus(preset.label);
+        } catch (err) {
+            console.error("Error activating preset:", err);
+            showStatus("Error", 'error');
+        } finally {
+            if (btn) btn.style.opacity = '1';
         }
     }
 
     /**
-     * Initialize preset buttons on index page
+     * Initialize preset buttons
      */
-    function initPresetsPage() {
+    function initPresets() {
         const grid = document.getElementById('presets-grid');
         if (!grid || !config) return;
 
-        // Clear existing content
         grid.innerHTML = '';
 
-        // Create preset buttons
         Object.entries(config.presets).forEach(([key, preset]) => {
             const btn = document.createElement('button');
             btn.className = 'btn btn-preset';
             btn.setAttribute('data-preset', key);
 
-            if (preset.tracking) {
-                btn.classList.add('tracking');
-            }
-
-            // Label
             const label = document.createElement('span');
             label.className = 'preset-label';
             label.textContent = preset.label;
             btn.appendChild(label);
 
-            // Tracking badge
-            if (preset.tracking) {
-                const badge = document.createElement('span');
-                badge.className = 'preset-badge';
-                badge.textContent = 'Track';
-                btn.appendChild(badge);
-            }
-
-            // Click handler
             btn.addEventListener('click', () => activatePreset(key));
-
             grid.appendChild(btn);
         });
     }
 
     /**
-     * Initialize manual controls on manual.html page
+     * Initialize manual controls
      */
     function initManualControls() {
-        // Track Start button
-        const trackStartBtn = document.getElementById('track-start');
-        if (trackStartBtn) {
-            trackStartBtn.addEventListener('click', async () => {
-                const success = await sendCommand('trackingOn');
-                if (success) showStatus('Tracking ON');
-            });
-        }
-
-        // Track Stop button
-        const trackStopBtn = document.getElementById('track-stop');
-        if (trackStopBtn) {
-            trackStopBtn.addEventListener('click', async () => {
-                const success = await sendCommand('trackingOff');
-                if (success) showStatus('Tracking OFF');
-            });
-        }
-
         // Home button
         const homeBtn = document.getElementById('home-btn');
         if (homeBtn) {
             homeBtn.addEventListener('click', async () => {
                 const success = await sendCommand('home');
-                if (success) showStatus('Home position');
+                if (success) showStatus('Home');
             });
         }
 
-        // D-pad buttons (hold-to-move)
+        // Helper for touch/mouse hold
+        const attachHoldHandlers = (element, startFn, stopFn) => {
+            if (!element) return;
+
+            const start = (e) => {
+                if (e.type === 'touchstart') e.preventDefault();
+                element.classList.add('active');
+                startFn();
+            };
+            
+            const stop = (e) => {
+                if (e.type === 'touchend') e.preventDefault();
+                element.classList.remove('active');
+                stopFn();
+            };
+
+            element.addEventListener('touchstart', start);
+            element.addEventListener('touchend', stop);
+            element.addEventListener('touchcancel', stop);
+
+            element.addEventListener('mousedown', start);
+            element.addEventListener('mouseup', stop);
+            element.addEventListener('mouseleave', stop);
+        };
+
+        // D-pad buttons
         const dpadButtons = document.querySelectorAll('.dpad-btn[data-direction]');
         dpadButtons.forEach(btn => {
             const direction = btn.getAttribute('data-direction');
             const dirCode = DIRECTION_MAP[direction];
-
             if (!dirCode) return;
 
-            // Touch events
-            btn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                btn.classList.add('active');
-                sendContinuous('start', 'panTilt', {
-                    panSpeed: 4,
-                    tiltSpeed: 4,
-                    direction: dirCode
-                });
-            });
-
-            btn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                btn.classList.remove('active');
-                sendContinuous('stop', 'panTilt');
-            });
-
-            btn.addEventListener('touchcancel', () => {
-                btn.classList.remove('active');
-                sendContinuous('stop', 'panTilt');
-            });
-
-            // Mouse events for desktop
-            btn.addEventListener('mousedown', () => {
-                btn.classList.add('active');
-                sendContinuous('start', 'panTilt', {
-                    panSpeed: 4,
-                    tiltSpeed: 4,
-                    direction: dirCode
-                });
-            });
-
-            btn.addEventListener('mouseup', () => {
-                btn.classList.remove('active');
-                sendContinuous('stop', 'panTilt');
-            });
-
-            btn.addEventListener('mouseleave', () => {
-                btn.classList.remove('active');
-                sendContinuous('stop', 'panTilt');
-            });
+            attachHoldHandlers(
+                btn,
+                () => sendContinuous('start', 'panTilt', { panSpeed: 6, tiltSpeed: 6, direction: dirCode }),
+                () => sendContinuous('stop', 'panTilt')
+            );
         });
 
-        // Zoom In button (hold-to-zoom)
-        const zoomInBtn = document.getElementById('zoom-in');
-        if (zoomInBtn) {
-            // Touch events
-            zoomInBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                zoomInBtn.classList.add('active');
-                sendContinuous('start', 'zoomIn', { speed: 4 });
-            });
+        // Zoom In
+        attachHoldHandlers(
+            document.getElementById('zoom-in'),
+            () => sendContinuous('start', 'zoomIn', { speed: 4 }),
+            () => sendContinuous('stop', 'zoomIn')
+        );
 
-            zoomInBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                zoomInBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomIn');
-            });
-
-            zoomInBtn.addEventListener('touchcancel', () => {
-                zoomInBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomIn');
-            });
-
-            // Mouse events
-            zoomInBtn.addEventListener('mousedown', () => {
-                zoomInBtn.classList.add('active');
-                sendContinuous('start', 'zoomIn', { speed: 4 });
-            });
-
-            zoomInBtn.addEventListener('mouseup', () => {
-                zoomInBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomIn');
-            });
-
-            zoomInBtn.addEventListener('mouseleave', () => {
-                zoomInBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomIn');
-            });
-        }
-
-        // Zoom Out button (hold-to-zoom)
-        const zoomOutBtn = document.getElementById('zoom-out');
-        if (zoomOutBtn) {
-            // Touch events
-            zoomOutBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                zoomOutBtn.classList.add('active');
-                sendContinuous('start', 'zoomOut', { speed: 4 });
-            });
-
-            zoomOutBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                zoomOutBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomOut');
-            });
-
-            zoomOutBtn.addEventListener('touchcancel', () => {
-                zoomOutBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomOut');
-            });
-
-            // Mouse events
-            zoomOutBtn.addEventListener('mousedown', () => {
-                zoomOutBtn.classList.add('active');
-                sendContinuous('start', 'zoomOut', { speed: 4 });
-            });
-
-            zoomOutBtn.addEventListener('mouseup', () => {
-                zoomOutBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomOut');
-            });
-
-            zoomOutBtn.addEventListener('mouseleave', () => {
-                zoomOutBtn.classList.remove('active');
-                sendContinuous('stop', 'zoomOut');
-            });
-        }
+        // Zoom Out
+        attachHoldHandlers(
+            document.getElementById('zoom-out'),
+            () => sendContinuous('start', 'zoomOut', { speed: 4 }),
+            () => sendContinuous('stop', 'zoomOut')
+        );
     }
 
     /**
-     * Load configuration from server
+     * Load configuration
      */
     async function loadConfig() {
         try {
@@ -335,30 +259,22 @@
             return true;
         } catch (error) {
             console.error('Failed to load config:', error);
-            showStatus('Failed to load configuration', 'error');
+            showStatus('Config error', 'error');
             return false;
         }
     }
 
     /**
-     * Initialize the application
+     * Initialize app
      */
     async function init() {
-        // Load config
         const loaded = await loadConfig();
         if (!loaded) return;
 
-        // Determine which page we're on and initialize accordingly
-        const isManualPage = document.getElementById('track-start') !== null;
-
-        if (isManualPage) {
-            initManualControls();
-        } else {
-            initPresetsPage();
-        }
+        initPresets();
+        initManualControls();
     }
 
-    // Start when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

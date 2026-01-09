@@ -1,327 +1,294 @@
 /**
- * PTZ Web Control - Modern Mobile-First Styles
+ * PTZ Web Control - Dark Gradient Theme
+ * "Image 2" Style - Circular D-Pad, Gradient Buttons
  */
 
-/* CSS Variables for theming */
 :root {
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #2a2a2a;
-    --bg-tertiary: #3a3a3a;
-    --text-primary: #ffffff;
-    --text-secondary: #b0b0b0;
-    --accent-color: #4a9eff;
-    --accent-hover: #3a8eef;
-    --success-color: #4ade80;
-    --danger-color: #f87171;
-    --border-radius: 12px;
-    --transition: 150ms ease;
+    --bg-app: #151515;
+    --bg-panel: #202020;
+    
+    /* Gradients */
+    --grad-btn: linear-gradient(180deg, #3a3a3a 0%, #252525 100%);
+    --grad-btn-hover: linear-gradient(180deg, #454545 0%, #303030 100%);
+    --grad-btn-active: linear-gradient(180deg, #ffd700 0%, #daa520 100%); /* Gold/Yellow for active */
+    
+    /* Text */
+    --text-primary: #e0e0e0;
+    --text-secondary: #888888;
+    --text-active: #111111;
+    
+    /* Dimensions */
+    --header-height: 48px;
+    --gap-size: 10px;
+    --radius-pill: 50px;
+    --radius-btn: 8px;
+    --panel-width: 240px; /* Reduced width for manual controls to match image */
 }
 
-/* Reset and base styles */
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-}
-
-html {
-    font-size: 16px;
-    -webkit-text-size-adjust: 100%;
+    user-select: none;
+    -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background-color: var(--bg-primary);
+    background-color: var(--bg-app);
     color: var(--text-primary);
-    line-height: 1.5;
-    min-height: 100vh;
-    min-height: 100dvh; /* Dynamic viewport height for mobile */
-}
-
-/* Container */
-.container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 1rem;
-    min-height: 100vh;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-/* Header */
+/* Dashboard Container */
+.dashboard {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: var(--gap-size);
+}
+
+/* Compact Header */
 header {
-    text-align: center;
-    padding: 1rem 0 1.5rem;
+    height: var(--header-height);
+    flex-shrink: 0;
+    margin-bottom: var(--gap-size);
 }
 
-header h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-}
-
-/* Status indicator */
-.status {
-    margin-top: 0.75rem;
-    font-size: 0.875rem;
-    min-height: 1.5rem;
-    opacity: 0;
-    transition: opacity var(--transition);
-}
-
-.status.visible {
-    opacity: 1;
-}
-
-.status.success {
-    color: var(--success-color);
-}
-
-.status.error {
-    color: var(--danger-color);
-}
-
-/* Main content */
-main {
-    flex: 1;
+.header-row {
     display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-/* Presets Grid */
-.presets-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 0.75rem;
-}
-
-/* Button base styles */
-.btn {
-    display: inline-flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    min-height: 60px; /* Minimum touch target */
-    padding: 0.75rem 1rem;
+    background-color: var(--bg-panel);
+    padding: 0 1rem;
+    height: 100%;
+    border-radius: var(--radius-btn);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+h1 {
     font-size: 1rem;
-    font-weight: 500;
-    border: none;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color var(--transition), transform var(--transition);
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
-}
-
-.btn:active {
-    transform: scale(0.96);
-}
-
-/* Primary preset buttons */
-.btn-preset {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.btn-preset:hover {
-    background-color: var(--bg-tertiary);
-}
-
-.btn-preset.tracking {
-    border: 2px solid var(--accent-color);
-}
-
-.btn-preset .preset-label {
-    font-size: 1rem;
-}
-
-.btn-preset .preset-badge {
-    font-size: 0.7rem;
-    padding: 0.125rem 0.5rem;
-    background-color: var(--accent-color);
-    border-radius: 4px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.btn-preset.sending {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-/* Primary buttons */
-.btn-primary {
-    background-color: var(--accent-color);
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: var(--accent-hover);
-}
-
-/* Secondary buttons */
-.btn-secondary {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    width: 100%;
-}
-
-.btn-secondary:hover {
-    background-color: var(--bg-tertiary);
-}
-
-/* Zoom buttons */
-.btn-zoom {
-    background-color: var(--bg-secondary);
-    flex: 1;
-    min-height: 70px;
-    font-size: 1.1rem;
-}
-
-.btn-zoom:hover {
-    background-color: var(--bg-tertiary);
-}
-
-/* Track controls */
-.track-controls {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.track-controls .btn {
-    flex: 1;
-}
-
-/* D-pad / Directional controls */
-.dpad {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-width: 280px;
-    margin: 0 auto;
-}
-
-.dpad-row {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.dpad-btn {
-    width: 70px;
-    height: 70px;
-    min-height: 70px;
-    background-color: var(--bg-secondary);
-    border: none;
-    border-radius: var(--border-radius);
-    color: var(--text-primary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color var(--transition), transform var(--transition);
-    touch-action: manipulation;
-}
-
-.dpad-btn svg {
-    width: 28px;
-    height: 28px;
-}
-
-.dpad-btn:active,
-.dpad-btn.active {
-    background-color: var(--accent-color);
-    transform: scale(0.95);
-}
-
-.dpad-btn.home-btn {
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-/* Zoom controls */
-.zoom-controls {
-    display: flex;
-    gap: 0.75rem;
-}
-
-/* Navigation buttons */
-.nav-buttons {
-    margin-top: auto;
-    padding-top: 1rem;
-}
-
-/* Loading state */
-.loading {
-    text-align: center;
-    padding: 2rem;
+    letter-spacing: 1.5px;
     color: var(--text-secondary);
 }
 
-.loading::after {
-    content: '';
-    display: inline-block;
-    width: 1.5rem;
-    height: 1.5rem;
-    margin-left: 0.5rem;
-    border: 2px solid var(--text-secondary);
-    border-top-color: transparent;
+.status {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.status.visible { opacity: 1; }
+.status.success { color: #81c784; } /* Soft green */
+.status.error { color: #e57373; }   /* Soft red */
+
+/* Main Grid Layout */
+.dashboard-grid {
+    flex: 1;
+    display: flex;
+    gap: 1.5rem; /* More space between panels */
+    overflow: hidden;
+    padding-bottom: 0.5rem;
+}
+
+/* Left Panel: Manual Controls */
+.manual-panel {
+    flex: 0 0 var(--panel-width);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Align to top */
+    padding-top: 1rem; /* Add some spacing from top */
+    gap: 2rem; /* Spacing between Zoom In - DPad - Zoom Out */
+}
+
+/* Pill Buttons (Zoom) */
+.btn-pill {
+    width: 100%;
+    height: 60px;
+    border-radius: var(--radius-pill);
+    background: var(--grad-btn);
+    border: 1px solid rgba(0,0,0,0.5);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.btn-pill:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 3px rgba(0,0,0,0.4);
+    background: var(--grad-btn-active);
+    color: var(--text-active);
+}
+
+.btn-pill svg {
+    width: 20px;
+    height: 20px;
+    fill: #4fc3f7; /* Light blue accent icon */
+}
+.btn-pill:active svg {
+    fill: var(--text-active);
+}
+
+/* Circular D-Pad Container */
+.dpad-container {
+    width: 180px;
+    height: 180px;
+    position: relative;
+    background: #111;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5), inset 0 2px 10px rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+/* Absolute Positioning for Circle Layout */
+.dpad-circle {
+    position: relative;
+    width: 100%;
+    height: 100%;
 }
 
-/* Responsive adjustments */
-@media (min-width: 480px) {
-    .presets-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-
-    .dpad-btn {
-        width: 80px;
-        height: 80px;
-        min-height: 80px;
-    }
-
-    .dpad-btn svg {
-        width: 32px;
-        height: 32px;
-    }
+.dpad-btn {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    background: var(--grad-btn);
+    border-radius: 8px; /* Slightly rounded squares */
+    border: 1px solid rgba(0,0,0,0.8);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
 }
 
-/* Desktop enhancements */
-@media (min-width: 768px) {
-    header h1 {
-        font-size: 1.75rem;
-    }
-
-    .btn {
-        min-height: 64px;
-    }
-
-    .dpad-btn {
-        width: 90px;
-        height: 90px;
-        min-height: 90px;
-    }
+.dpad-btn:active, .dpad-btn.active {
+    background: var(--grad-btn-active);
+    color: var(--text-active);
 }
 
-/* Reduce motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+.dpad-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Positioning Directions */
+.dpad-btn.up { top: 12px; left: 50%; transform: translateX(-50%); }
+.dpad-btn.down { bottom: 12px; left: 50%; transform: translateX(-50%); }
+.dpad-btn.left { left: 12px; top: 50%; transform: translateY(-50%); }
+.dpad-btn.right { right: 12px; top: 50%; transform: translateY(-50%); }
+.dpad-btn.home {
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px; height: 56px; /* Larger center button */
+    border-radius: 50%; /* Circle center */
+    font-size: 0.7rem;
+    z-index: 10;
+}
+
+/* Right Panel: Presets Grid */
+.presets-panel {
+    flex: 1;
+    /* background-color: var(--bg-panel); */ /* Optional: panel background */
+    border-radius: var(--radius-btn);
+    overflow-y: auto;
+    padding-right: 4px; /* Space for scrollbar */
+}
+
+/* Classic Companion Layout - 2 columns on tablet, auto-fit */
+.presets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    align-content: start;
+}
+
+.btn-preset {
+    aspect-ratio: 16/9; /* Wider rectangle */
+    background: var(--grad-btn);
+    border: 1px solid rgba(0,0,0,0.6);
+    border-radius: 6px;
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.4);
+    cursor: pointer;
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    transition: transform 0.1s;
+}
+
+.btn-preset:active {
+    transform: translateY(2px);
+    background: var(--grad-btn-active);
+    color: var(--text-active);
+}
+
+.preset-label {
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+/* No tracking badge visually (clean look requested), logic handles it */
+.preset-badge {
+    display: none; 
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .dashboard-grid {
+        gap: 1rem;
     }
+    .manual-panel {
+        flex: 0 0 160px; /* Slimmer on smaller screens */
+    }
+    .dpad-container {
+        width: 140px;
+        height: 140px;
+    }
+    .dpad-btn { width: 36px; height: 36px; }
+    .dpad-btn.home { width: 44px; height: 44px; }
+    
+    .btn-pill { height: 50px; font-size: 0.8rem; }
+}
+
+@media (max-height: 600px) {
+    /* Super compact height mode */
+    .manual-panel { gap: 1rem; }
 }
