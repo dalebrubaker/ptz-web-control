@@ -1,19 +1,29 @@
 /**
  * VISCA Command Module
- * Builds VISCA over IP command packets per SimplTrack2/HuddleView specification
+ * Builds VISCA command packets per SimplTrack2/HuddleView specification
+ *
+ * Notes:
+ * - The SimplTrack2/HuddleView TCP control port (default 5678) expects raw VISCA bytes like:
+ *   `81 01 ... FF`
+ * - Some environments use a VISCA-over-IP wrapper. You can enable that wrapper by setting:
+ *   `VISCA_USE_IP_WRAPPER=true`
  */
 
-// VISCA Header per PDF spec: 0x81 0x01 [socket] 0x01
-// Socket number: 1 for first camera (per PDF page 3)
-const SOCKET = 1;
-
-const HEADER = Buffer.from([0x81, 0x01, SOCKET, 0x01]);
 const TERMINATOR = 0xFF;
 
 // Sequence number for IP packets
 let sequenceNumber = 0;
 
-// Direction codes for Pan/Tilt (per PDF spec)
+const DEFAULT_USE_IP_WRAPPER = /^(1|true|yes)$/i.test(process.env.VISCA_USE_IP_WRAPPER || '');
+const DEFAULT_CAMERA_ADDRESS = (() => {
+    const parsed = Number.parseInt(process.env.VISCA_CAMERA_ADDRESS || '1', 10);
+    if (!Number.isFinite(parsed)) return 1;
+    // VISCA addresses are typically 1-7.
+    return Math.max(1, Math.min(7, parsed));
+})();
+const CAMERA_ADDRESS_BYTE = 0x80 | (DEFAULT_CAMERA_ADDRESS & 0x0F);
+
+// Direction codes for Pan/Tilt (used by the client)
 const DIRECTIONS = {
     LEFT: 1,
     RIGHT: 2,
@@ -26,16 +36,21 @@ const DIRECTIONS = {
 };
 
 /**
- * Build a raw VISCA command packet (without IP wrapper)
- * This is the standard VISCA format: 81 01 [socket] 01 [command] FF
+ * Ensure VISCA packet ends with 0xFF.
  */
-function buildRawViscaPacket(commandBytes) {
-    const packet = Buffer.concat([
-        HEADER,
-        commandBytes,
-        Buffer.from([TERMINATOR])
-    ]);
-    return packet;
+function ensureTerminator(packet) {
+    if (packet.length === 0) return Buffer.from([TERMINATOR]);
+    if (packet[packet.length - 1] === TERMINATOR) return packet;
+    return Buffer.concat([packet, Buffer.from([TERMINATOR])]);
+}
+
+/**
+ * Build a raw VISCA packet (no IP wrapper).
+ * `bytes` should contain the full VISCA message (e.g. `81 01 ... FF`).
+ */
+function buildRawViscaPacket(bytes) {
+    const packet = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+    return ensureTerminator(packet);
 }
 
 /**
@@ -61,34 +76,23 @@ function buildIpPacket(viscaPacket) {
 }
 
 /**
- * Build a complete VISCA over IP packet
- * Wraps the VISCA command in the IP packet format
- * Set USE_IP_WRAPPER to false to send raw VISCA commands
+ * Build a complete packet.
+ * Default is raw VISCA. Set `VISCA_USE_IP_WRAPPER=true` to enable the wrapper.
  */
-const USE_IP_WRAPPER = true;  // Try false if camera doesn't respond
-
-function buildPacket(commandBytes, useIpWrapper = USE_IP_WRAPPER) {
-    const viscaPacket = Buffer.concat([
-        HEADER,
-        commandBytes,
-        Buffer.from([TERMINATOR])
-    ]);
-
-    if (useIpWrapper) {
-        return buildIpPacket(viscaPacket);
-    }
-    return viscaPacket;
+function buildPacket(viscaPacket, useIpWrapper = DEFAULT_USE_IP_WRAPPER) {
+    const raw = buildRawViscaPacket(viscaPacket);
+    return useIpWrapper ? buildIpPacket(raw) : raw;
 }
 
 /**
  * Preset Recall Command
- * Command: 81 01 04 3F 02 [P] FF
+ * Command: 81 01 04 3F 02 [pp] FF
  * P = preset number (0x00-0x7F)
  * @param {number} presetNumber - Preset number (1-7 in our config)
  */
 function buildPresetRecall(presetNumber) {
     const presetByte = presetNumber & 0x7F;
-    return buildPacket(Buffer.from([0x04, 0x3F, 0x02, presetByte]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x3F, 0x02, presetByte, TERMINATOR]));
 }
 
 /**
@@ -96,7 +100,7 @@ function buildPresetRecall(presetNumber) {
  * Command: 81 01 04 3F 02 50 FF
  */
 function buildTrackingOn() {
-    return buildPacket(Buffer.from([0x04, 0x3F, 0x02, 0x50]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x3F, 0x02, 0x50, TERMINATOR]));
 }
 
 /**
@@ -104,31 +108,46 @@ function buildTrackingOn() {
  * Command: 81 01 04 3F 02 51 FF
  */
 function buildTrackingOff() {
-    return buildPacket(Buffer.from([0x04, 0x3F, 0x02, 0x51]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x3F, 0x02, 0x51, TERMINATOR]));
 }
 
 /**
  * Pan/Tilt Command
- * Command: 81 01 06 01 VV WW DD FF
- * VV = pan speed (0-7 for standard, 0-18 for wide range)
- * WW = tilt speed (0-7 for standard, 0-14 for wide range)
- * DD = direction (1-8 per above)
- * @param {number} panSpeed - Pan speed (0-7)
- * @param {number} tiltSpeed - Tilt speed (0-7)
- * @param {number} direction - Direction code (1-8)
+ * Command: 81 01 06 01 VV WW AA BB FF
+ * VV = pan speed  (0x01-0x18)
+ * WW = tilt speed (0x01-0x14)
+ * AA/BB = pan/tilt direction bytes
  */
+const PAN_TILT_DIR = {
+    [DIRECTIONS.UP]: [0x03, 0x01],
+    [DIRECTIONS.DOWN]: [0x03, 0x02],
+    [DIRECTIONS.LEFT]: [0x01, 0x03],
+    [DIRECTIONS.RIGHT]: [0x02, 0x03],
+    [DIRECTIONS.UP_LEFT]: [0x01, 0x01],
+    [DIRECTIONS.UP_RIGHT]: [0x02, 0x01],
+    [DIRECTIONS.DOWN_LEFT]: [0x01, 0x02],
+    [DIRECTIONS.DOWN_RIGHT]: [0x02, 0x02]
+};
+
+function clampByte(value, min, max, fallback) {
+    if (!Number.isFinite(value)) return fallback;
+    return Math.max(min, Math.min(max, value)) & 0xFF;
+}
+
 function buildPanTilt(panSpeed, tiltSpeed, direction) {
-    const p = Math.max(0, Math.min(7, panSpeed)) & 0x7F;
-    const t = Math.max(0, Math.min(7, tiltSpeed)) & 0x7F;
-    const d = Math.max(1, Math.min(8, direction)) & 0x7F;
-    return buildPacket(Buffer.from([0x06, 0x01, p, t, d]));
+    const p = clampByte(panSpeed, 0x01, 0x18, 0x04);
+    const t = clampByte(tiltSpeed, 0x01, 0x14, 0x04);
+    const [panDir, tiltDir] = PAN_TILT_DIR[direction] || [0x03, 0x03];
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x06, 0x01, p, t, panDir, tiltDir, TERMINATOR]));
 }
 
 /**
  * Stop Pan/Tilt movement
  */
-function buildPanTiltStop() {
-    return buildPacket(Buffer.from([0x06, 0x01, 0, 0, 0]));
+function buildPanTiltStop(panSpeed = 0x04, tiltSpeed = 0x04) {
+    const p = clampByte(panSpeed, 0x01, 0x18, 0x04);
+    const t = clampByte(tiltSpeed, 0x01, 0x14, 0x04);
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x06, 0x01, p, t, 0x03, 0x03, TERMINATOR]));
 }
 
 /**
@@ -139,7 +158,7 @@ function buildPanTiltStop() {
  */
 function buildZoomIn(speed = 4) {
     const s = Math.max(0, Math.min(7, speed));
-    return buildPacket(Buffer.from([0x04, 0x07, 0x20 | s]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x07, 0x20 | s, TERMINATOR]));
 }
 
 /**
@@ -150,14 +169,14 @@ function buildZoomIn(speed = 4) {
  */
 function buildZoomOut(speed = 4) {
     const s = Math.max(0, Math.min(7, speed));
-    return buildPacket(Buffer.from([0x04, 0x07, 0x30 | s]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x07, 0x30 | s, TERMINATOR]));
 }
 
 /**
  * Stop Zoom
  */
 function buildZoomStop() {
-    return buildPacket(Buffer.from([0x04, 0x07, 0x00]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x07, 0x00, TERMINATOR]));
 }
 
 /**
@@ -165,7 +184,51 @@ function buildZoomStop() {
  * Command: 81 01 06 04 FF
  */
 function buildHome() {
-    return buildPacket(Buffer.from([0x06, 0x04]));
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x06, 0x04, TERMINATOR]));
+}
+
+/**
+ * I/F Clear (broadcast)
+ * Command: 88 01 00 01 FF
+ */
+function buildIfClear() {
+    return buildPacket(Buffer.from([0x88, 0x01, 0x00, 0x01, TERMINATOR]));
+}
+
+/**
+ * Address Set (broadcast)
+ * Command: 88 30 01 FF
+ */
+function buildAddressSet() {
+    return buildPacket(Buffer.from([0x88, 0x30, 0x01, TERMINATOR]));
+}
+
+/**
+ * Command Cancel
+ * Command: 81 2p FF (p: socket number 1 or 2)
+ */
+function buildCommandCancel(socketNumber = 1) {
+    const p = socketNumber === 2 ? 0x02 : 0x01;
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x20 | p, TERMINATOR]));
+}
+
+/**
+ * Power control / inquiry (useful for diagnostics)
+ */
+function buildPowerOn() {
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x00, 0x02, TERMINATOR]));
+}
+
+function buildPowerOff() {
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x01, 0x04, 0x00, 0x03, TERMINATOR]));
+}
+
+function buildPowerInquiry() {
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x09, 0x04, 0x00, TERMINATOR]));
+}
+
+function buildVersionInquiry() {
+    return buildPacket(Buffer.from([CAMERA_ADDRESS_BYTE, 0x09, 0x00, 0x02, TERMINATOR]));
 }
 
 module.exports = {
@@ -179,6 +242,13 @@ module.exports = {
     buildZoomOut,
     buildZoomStop,
     buildHome,
+    buildIfClear,
+    buildAddressSet,
+    buildCommandCancel,
+    buildPowerOn,
+    buildPowerOff,
+    buildPowerInquiry,
+    buildVersionInquiry,
     buildRawViscaPacket,  // Export for testing
 
     // Direction constants

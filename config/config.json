@@ -1,6 +1,6 @@
 {
     "camera": {
-        "ip": "192.168.1.100",
+        "ip": "10.0.0.2",
         "port": 5678,
         "protocol": "tcp"
     },
@@ -9,37 +9,37 @@
     },
     "presets": {
         "stage": {
-            "number": 1,
+            "number": 0,
             "label": "Stage",
             "tracking": false
         },
         "welcome": {
-            "number": 2,
-            "label": "Welcome",
+            "number": 3,
+            "label": "Front Wide (Welcome)",
             "tracking": false
         },
         "prayer": {
-            "number": 3,
-            "label": "Prayer (Track)",
+            "number": 4,
+            "label": "Front Close (Track)",
             "tracking": true
         },
         "podium": {
-            "number": 4,
+            "number": 1,
             "label": "Podium (Track)",
             "tracking": true
         },
         "offering": {
-            "number": 5,
+            "number": 2,
             "label": "Offering",
             "tracking": false
         },
         "widest": {
-            "number": 6,
+            "number": 5,
             "label": "Widest",
             "tracking": false
         },
         "baptistry": {
-            "number": 7,
+            "number": 6,
             "label": "Baptistry",
             "tracking": false
         }

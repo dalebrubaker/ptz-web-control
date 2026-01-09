@@ -20,6 +20,8 @@ const PORT = config.server.port || 3000;
 const CAMERA_IP = config.camera.ip;
 const CAMERA_PORT = config.camera.port;
 const PROTOCOL = config.camera.protocol || 'tcp'; // 'tcp' or 'udp'
+process.env.VISCA_USE_IP_WRAPPER = String(!!config.camera.useIpWrapper);
+process.env.VISCA_CAMERA_ADDRESS = String(config.camera.address ?? 1);
 
 // Middleware
 app.use(express.json());
@@ -32,6 +34,43 @@ function logTime() {
     return new Date().toISOString().split('T')[1].slice(0, -1);
 }
 
+function interpretViscaMessage(message) {
+    if (!message || message.length === 0) return 'Empty';
+    if (message[message.length - 1] !== 0xFF) return 'Unterminated';
+
+    // ACK / Completion: z0 4y FF, z0 5y FF
+    if (message.length === 3 && (message[1] & 0xF0) === 0x40) {
+        return `ACK (socket ${message[1] & 0x0F})`;
+    }
+    if (message.length === 3 && (message[1] & 0xF0) === 0x50) {
+        return `Completion (socket ${message[1] & 0x0F})`;
+    }
+
+    // Errors:
+    // - Syntax Error: z0 60 02 FF
+    // - Command Buffer Full: z0 60 03 FF
+    // - Canceled/No Socket/Not Executable: z0 6y 04/05/41 FF
+    if (message.length === 4 && (message[1] & 0xF0) === 0x60) {
+        const socket = message[1] & 0x0F;
+        const code = message[2];
+        const codeLabel =
+            code === 0x02 ? 'Syntax Error' :
+            code === 0x03 ? 'Command Buffer Full' :
+            code === 0x04 ? 'Command Canceled' :
+            code === 0x05 ? 'No Socket' :
+            code === 0x41 ? 'Command Not Executable' :
+            `Error 0x${code.toString(16).padStart(2, '0')}`;
+        return socket ? `${codeLabel} (socket ${socket})` : codeLabel;
+    }
+
+    // Inquiry responses commonly begin with y0 50 ...
+    if (message.length >= 4 && message[1] === 0x50) {
+        return 'Inquiry Response';
+    }
+
+    return 'Response';
+}
+
 /**
  * Send VISCA command via TCP
  * @param {Buffer} packet - VISCA command packet
@@ -40,48 +79,83 @@ function logTime() {
 function sendTcpCommand(packet) {
     return new Promise((resolve, reject) => {
         const client = new net.Socket();
-        let timeoutId;
+        let connectTimeoutId;
+        let overallTimeoutId;
+        let settleTimeoutId;
+
+        let receiveBuffer = Buffer.alloc(0);
+        let gotAnyResponse = false;
+
+        function clearTimers() {
+            clearTimeout(connectTimeoutId);
+            clearTimeout(overallTimeoutId);
+            clearTimeout(settleTimeoutId);
+        }
+
+        function finish() {
+            clearTimers();
+            client.destroy();
+            resolve();
+        }
+
+        function scheduleSettle() {
+            clearTimeout(settleTimeoutId);
+            // Close shortly after the last response chunk to allow ACK + Completion.
+            settleTimeoutId = setTimeout(finish, 250);
+        }
 
         // Set timeout
-        timeoutId = setTimeout(() => {
+        connectTimeoutId = setTimeout(() => {
             client.destroy();
             reject(new Error('TCP connection timeout'));
         }, 5000);
 
         client.connect(CAMERA_PORT, CAMERA_IP, () => {
-            clearTimeout(timeoutId);
+            clearTimeout(connectTimeoutId);
             console.log(`[${logTime()}] TCP connected to ${CAMERA_IP}:${CAMERA_PORT}`);
             // Send the VISCA packet
             client.write(packet);
 
-            // Listen for response
-            const responseChunks = [];
-            client.on('data', (data) => {
-                responseChunks.push(data);
-                const response = Buffer.concat(responseChunks);
-                console.log(`[${logTime()}] <<< Response hex:`, response.toString('hex'));
-                console.log(`[${logTime()}] <<< Response bytes:`, Array.from(response).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-            });
-
-            // Give a small delay for the command to be received, then close
-            setTimeout(() => {
-                if (responseChunks.length === 0) {
+            // If the camera doesn't respond, close after a short grace period.
+            overallTimeoutId = setTimeout(() => {
+                if (!gotAnyResponse) {
                     console.log(`[${logTime()}] <<< No response received`);
                 }
-                client.destroy();
-                resolve();
-            }, 500);
+                finish();
+            }, 2500);
+        });
+
+        client.on('data', (data) => {
+            gotAnyResponse = true;
+            receiveBuffer = Buffer.concat([receiveBuffer, data]);
+
+            // Split by 0xFF terminator (VISCA messages are FF-terminated)
+            while (true) {
+                const idx = receiveBuffer.indexOf(0xFF);
+                if (idx === -1) break;
+                const message = receiveBuffer.subarray(0, idx + 1);
+                receiveBuffer = receiveBuffer.subarray(idx + 1);
+
+                console.log(`[${logTime()}] <<< Response hex:`, message.toString('hex'), `(${interpretViscaMessage(message)})`);
+                console.log(`[${logTime()}] <<< Response bytes:`, Array.from(message).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+            }
+
+            scheduleSettle();
         });
 
         client.on('error', (err) => {
-            clearTimeout(timeoutId);
+            clearTimers();
             console.log(`[${logTime()}] TCP error:`, err.message);
             client.destroy();
             reject(err);
         });
 
+        client.on('end', () => {
+            scheduleSettle();
+        });
+
         client.on('close', () => {
-            clearTimeout(timeoutId);
+            clearTimers();
         });
     });
 }
@@ -95,11 +169,14 @@ function sendUdpCommand(packet) {
     return new Promise((resolve, reject) => {
         const client = dgram.createSocket('udp4');
         let closed = false;
+        let gotResponse = false;
+        let settleTimeoutId;
 
         function closeIfNeeded() {
             if (!closed) {
                 closed = true;
                 try {
+                    clearTimeout(settleTimeoutId);
                     client.close();
                 } catch (e) {
                     // Ignore close errors
@@ -107,16 +184,31 @@ function sendUdpCommand(packet) {
             }
         }
 
-        client.send(packet, CAMERA_PORT, CAMERA_IP, (err) => {
-            if (err) {
-                console.log(`[${logTime()}] UDP send error:`, err.message);
-                closeIfNeeded();
-                reject(err);
-            } else {
-                console.log(`[${logTime()}] UDP packet sent to ${CAMERA_IP}:${CAMERA_PORT} (no response expected)`);
-                closeIfNeeded();
-                resolve();
-            }
+        client.on('message', (msg, rinfo) => {
+            gotResponse = true;
+            console.log(`[${logTime()}] <<< UDP response from ${rinfo.address}:${rinfo.port}:`, msg.toString('hex'));
+            console.log(`[${logTime()}] <<< UDP response bytes:`, Array.from(msg).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+        });
+
+        client.bind(0, () => {
+            client.send(packet, CAMERA_PORT, CAMERA_IP, (err) => {
+                if (err) {
+                    console.log(`[${logTime()}] UDP send error:`, err.message);
+                    closeIfNeeded();
+                    reject(err);
+                } else {
+                    console.log(`[${logTime()}] UDP packet sent to ${CAMERA_IP}:${CAMERA_PORT}`);
+
+                    // Wait briefly for an optional response, then close.
+                    settleTimeoutId = setTimeout(() => {
+                        if (!gotResponse) {
+                            console.log(`[${logTime()}] <<< No UDP response received`);
+                        }
+                        closeIfNeeded();
+                        resolve();
+                    }, 1000);
+                }
+            });
         });
 
         client.on('error', (err) => {
@@ -206,6 +298,22 @@ app.post('/api/command', async (req, res) => {
         let result;
 
         switch (type) {
+            case 'rawHex': {
+                const hex = String(params.hex || '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/^0x/, '')
+                    .replace(/[^0-9a-f]/g, '');
+
+                if (!hex || hex.length % 2 !== 0) {
+                    return res.status(400).json({ success: false, error: 'Invalid hex (must be even-length hex bytes)' });
+                }
+
+                packet = Buffer.from(hex, 'hex');
+                result = await sendCommand(packet);
+                break;
+            }
+
             case 'preset':
                 packet = visca.buildPresetRecall(params.presetNumber);
                 result = await sendCommand(packet);
@@ -260,6 +368,50 @@ app.post('/api/command', async (req, res) => {
 
             case 'home':
                 packet = visca.buildHome();
+                result = await sendCommand(packet);
+                break;
+
+            // Diagnostics / setup (per SimplTrack2/HuddleView VISCA over IP commands PDF)
+            case 'ifClear':
+                packet = visca.buildIfClear();
+                result = await sendCommand(packet);
+                break;
+
+            case 'addressSet':
+                packet = visca.buildAddressSet();
+                result = await sendCommand(packet);
+                break;
+
+            case 'initVisca':
+                // Some setups require an interface clear + address set before normal commands.
+                await sendCommand(visca.buildIfClear());
+                await new Promise(r => setTimeout(r, 100));
+                await sendCommand(visca.buildAddressSet());
+                result = { success: true };
+                break;
+
+            case 'powerOn':
+                packet = visca.buildPowerOn();
+                result = await sendCommand(packet);
+                break;
+
+            case 'powerOff':
+                packet = visca.buildPowerOff();
+                result = await sendCommand(packet);
+                break;
+
+            case 'powerInq':
+                packet = visca.buildPowerInquiry();
+                result = await sendCommand(packet);
+                break;
+
+            case 'versionInq':
+                packet = visca.buildVersionInquiry();
+                result = await sendCommand(packet);
+                break;
+
+            case 'commandCancel':
+                packet = visca.buildCommandCancel(params.socketNumber || 1);
                 result = await sendCommand(packet);
                 break;
 

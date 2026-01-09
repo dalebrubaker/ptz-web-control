@@ -4,7 +4,10 @@
       "Bash(npm install)",
       "Bash(npm start)",
       "Bash(timeout:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(node --version:*)",
+      "Bash(npm test)",
+      "Bash(node src/verify_move.mjs:*)"
     ]
   }
 }
