@@ -170,7 +170,6 @@ h1 {
 }
 
 .btn-pill:active {
-    transform: translateY(2px);
     box-shadow: 0 2px 3px rgba(0,0,0,0.4);
     background: var(--grad-btn-active);
     color: var(--text-active);
@@ -223,6 +222,8 @@ h1 {
 .dpad-btn:active, .dpad-btn.active {
     background: var(--grad-btn-active);
     color: var(--text-active);
+    /* transform removed to prevent cursor bounce */
+    box-shadow: none;
 }
 
 .dpad-btn svg {
@@ -280,7 +281,6 @@ h1 {
 }
 
 .btn-preset:active {
-    transform: translateY(2px);
     background: var(--grad-btn-active);
     color: var(--text-active);
 }

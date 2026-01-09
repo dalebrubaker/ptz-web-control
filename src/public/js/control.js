@@ -220,25 +220,53 @@
         }
 
         // Helper for touch/mouse hold
+        // Tracks active state to prevent duplicate events (touch + mouse firing together)
         const attachHoldHandlers = (element, startFn, stopFn) => {
             if (!element) return;
 
+            let isActive = false;
+            let lastEventTime = 0;
+            const DEBOUNCE_MS = 100; // Prevent rapid-fire events
+
             const start = (e) => {
+                const now = Date.now();
+                
+                // Prevent rapid-fire events
+                if (now - lastEventTime < DEBOUNCE_MS) {
+                    e.preventDefault();
+                    return;
+                }
+                lastEventTime = now;
+
+                // Prevent touch+mouse duplicate
+                if (isActive) return;
+                
                 if (e.type === 'touchstart') e.preventDefault();
+                
+                isActive = true;
                 element.classList.add('active');
                 startFn();
             };
             
             const stop = (e) => {
-                if (e.type === 'touchend') e.preventDefault();
+                // Only stop if we're actually active
+                if (!isActive) return;
+                
+                if (e.type === 'touchend' || e.type === 'touchcancel') {
+                    e.preventDefault();
+                }
+                
+                isActive = false;
                 element.classList.remove('active');
                 stopFn();
             };
 
-            element.addEventListener('touchstart', start);
-            element.addEventListener('touchend', stop);
-            element.addEventListener('touchcancel', stop);
+            // Touch events (primary for touch devices)
+            element.addEventListener('touchstart', start, { passive: false });
+            element.addEventListener('touchend', stop, { passive: false });
+            element.addEventListener('touchcancel', stop, { passive: false });
 
+            // Mouse events (for desktop)
             element.addEventListener('mousedown', start);
             element.addEventListener('mouseup', stop);
             element.addEventListener('mouseleave', stop);
@@ -289,14 +317,31 @@
     }
 
     /**
+     * Emergency Stop - Kills any server-side loops
+     */
+    async function sendPanicStop() {
+        await sendCommand('panTiltStop');
+        await sendCommand('zoomStop');
+    }
+
+    /**
      * Initialize app
      */
     async function init() {
+        // Safety: Stop everything on load
+        await sendPanicStop();
+
         const loaded = await loadConfig();
         if (!loaded) return;
 
         initPresets();
         initManualControls();
+
+        // Safety: Stop on unload
+        window.addEventListener('beforeunload', () => {
+            navigator.sendBeacon('/api/command', JSON.stringify({ type: 'panTiltStop' }));
+            navigator.sendBeacon('/api/command', JSON.stringify({ type: 'zoomStop' }));
+        });
     }
 
     if (document.readyState === 'loading') {

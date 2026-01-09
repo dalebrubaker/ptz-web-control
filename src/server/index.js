@@ -437,20 +437,34 @@ app.post('/api/command', async (req, res) => {
  * This allows starting/stopping movement for pan/tilt/zoom
  */
 let continuousInterval = null;
+let continuousType = null; // Track what type is currently active
+let lastContinuousTime = 0;
+const CONTINUOUS_DEBOUNCE_MS = 50; // Server-side debounce
 
 app.post('/api/continuous', async (req, res) => {
     const { action, type, ...params } = req.body;
+    const now = Date.now();
 
     try {
         const visca = require('./visca');
+
+        // Debounce rapid-fire requests
+        if (now - lastContinuousTime < CONTINUOUS_DEBOUNCE_MS) {
+            console.log(`[${logTime()}] Debounced continuous ${action} ${type} (too fast)`);
+            return res.json({ success: true }); // Silently succeed
+        }
+        lastContinuousTime = now;
 
         // Stop any existing continuous command
         if (continuousInterval) {
             clearInterval(continuousInterval);
             continuousInterval = null;
+            console.log(`[${logTime()}] Cleared previous continuous interval (was: ${continuousType})`);
         }
 
         if (action === 'start') {
+            continuousType = type;
+            
             // Send first command immediately
             let packet;
             switch (type) {
@@ -473,11 +487,20 @@ app.post('/api/continuous', async (req, res) => {
                 await sendCommand(packet);
 
                 // Set up interval to repeat the command
+                const capturedType = type; // Capture to verify it hasn't changed
                 continuousInterval = setInterval(async () => {
+                    // Safety: verify we're still in the same command type
+                    if (continuousType !== capturedType) {
+                        clearInterval(continuousInterval);
+                        continuousInterval = null;
+                        return;
+                    }
                     await sendCommand(packet);
                 }, 200); // Send every 200ms while holding
             }
         } else if (action === 'stop') {
+            continuousType = null; // Clear the type
+            
             // Send stop command
             let stopPacket;
             if (type === 'panTilt') {
