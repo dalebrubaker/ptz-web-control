@@ -292,3 +292,23 @@ h1 {
     /* Super compact height mode */
     .manual-panel { gap: 1rem; }
 }
+
+/* Debug Log */
+.debug-log {
+    margin-top: 10px;
+    height: 100px;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: #0f0;
+    overflow-y: auto;
+    display: flex; /* Toggle to none if wanted hidden by default */
+    flex-direction: column;
+}
+.debug-log div {
+    border-bottom: 1px solid #111;
+    padding: 2px 0;
+}

@@ -58,11 +58,23 @@
         }, 2000);
     }
 
+    // Debug logging
+    function logDebug(msg) {
+        console.log('[DEBUG]', msg);
+        const debugLog = document.getElementById('debug-log');
+        if (debugLog) {
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${msg}`;
+            debugLog.prepend(entry);
+        }
+    }
+
     /**
      * Send command to API
      */
     async function sendCommand(type, params = {}) {
         try {
+            logDebug(`Sending ${type}: ${JSON.stringify(params)}`);
             const response = await fetch('/api/command', {
                 method: 'POST',
                 headers: {
@@ -72,6 +84,7 @@
             });
 
             const result = await response.json();
+            logDebug(`Response: ${JSON.stringify(result)}`);
 
             if (!result.success) {
                 throw new Error(result.error || 'Command failed');
@@ -80,6 +93,7 @@
             return true;
         } catch (error) {
             console.error('Command error:', error);
+            logDebug(`Error: ${error.message}`);
             showStatus(error.message, 'error');
             return false;
         }
@@ -90,6 +104,7 @@
      */
     async function sendContinuous(action, type, params = {}) {
         try {
+            // logDebug(`Continuous ${action} ${type}`); // Too noisy?
             const response = await fetch('/api/continuous', {
                 method: 'POST',
                 headers: {
@@ -114,8 +129,8 @@
     /**
      * Activate a preset with Tracking Logic
      * If tracking is defined:
-     *   On: Call Preset 81 -> Wait -> Call Target
-     *   Off: Call Preset 80 -> Wait -> Call Target
+     *   On: Call Preset 80 (0x50) -> Wait -> Call Target
+     *   Off: Call Preset 81 (0x51) -> Wait -> Call Target
      */
     async function activatePreset(presetKey) {
         const preset = config.presets[presetKey];
@@ -124,19 +139,16 @@
         // Visual feedback
         const btn = document.querySelector(`[data-preset="${presetKey}"]`);
         if (btn) {
-            // Note: CSS might not have .sending style anymore but good to keep hook
             btn.style.opacity = '0.7'; 
         }
 
         try {
             // 1. Handle Tracking State first if defined
             if (preset.tracking !== undefined) {
-                const trackPreset = preset.tracking ? 81 : 80;
-                // We use the same 'preset' command, assuming the server supports raw preset numbers
-                // or we use a specific 'setTracking' command if the server distinguishes.
-                // Based on requirements: "tracking is set or unset first with preset 80 or 81"
+                // FIXED: Preset 80 is ON (0x50), Preset 81 is OFF (0x51)
+                const trackPreset = preset.tracking ? 80 : 81;
                 
-                // We'll use the generic preset command for 80/81
+                logDebug(`Setting Tracking ${preset.tracking ? 'ON' : 'OFF'} (Preset ${trackPreset})`);
                 await sendCommand('preset', { presetNumber: trackPreset });
                 
                 // Short delay to ensure camera processes the tracking command
@@ -144,6 +156,7 @@
             }
 
             // 2. Recall the actual target preset
+            logDebug(`Recalling Target Preset ${preset.number}`);
             const success = await sendCommand('preset', { presetNumber: preset.number });
             
             if (success) {
