@@ -3,21 +3,12 @@
  * Handles preset buttons, manual controls, and API communication
  */
 
-/**
- * PTZ Camera Control - Client-Side JavaScript
- * Handles preset buttons, manual controls, and API communication
- */
-
-/**
- * PTZ Camera Control - Client-Side JavaScript
- * Handles preset buttons, manual controls, and API communication
- */
-
 (function() {
     'use strict';
 
     // Configuration loaded from server
     let config = null;
+    let isTracking = false; // Added back to fix ReferenceError
 
     // Direction mapping for D-pad
     const DIRECTION_MAP = {
@@ -151,8 +142,12 @@
                 logDebug(`Setting Tracking ${preset.tracking ? 'ON' : 'OFF'} (Preset ${trackPreset})`);
                 await sendCommand('preset', { presetNumber: trackPreset });
                 
+                // Update UI state immediately
+                updateTrackingState(preset.tracking);
+
                 // Short delay to ensure camera processes the tracking command
-                await delay(250);
+                // Increased to 800ms to prevent "Command Not Executable" or buffer errors
+                await delay(800);
             }
 
             // 2. Recall the actual target preset
@@ -165,7 +160,8 @@
 
         } catch (err) {
             console.error("Error activating preset:", err);
-            showStatus("Error", 'error');
+            // Show specific error if possible, otherwise generic
+            showStatus(err.message || "Error", 'error');
         } finally {
             if (btn) btn.style.opacity = '1';
         }
@@ -193,6 +189,21 @@
             btn.addEventListener('click', () => activatePreset(key));
             grid.appendChild(btn);
         });
+    }
+
+    /**
+     * Update Tracking UI State
+     */
+    function updateTrackingState(enabled) {
+        isTracking = enabled;
+        const indicator = document.getElementById('track-indicator');
+        if (indicator) {
+            if (isTracking) {
+                indicator.classList.add('active');
+            } else {
+                indicator.classList.remove('active');
+            }
+        }
     }
 
     /**
