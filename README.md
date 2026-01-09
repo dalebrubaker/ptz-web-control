@@ -27,7 +27,7 @@ Bitfocus Companion has reliability issues with VISCA camera control - persistent
 ## Hardware Compatibility
 
 - **Camera**: SimplTrack2 / HuddleView (VISCA over IP compatible)
-- **Protocol**: VISCA over TCP (port 5678) or UDP
+- **Protocol**: VISCA over UDP (port 52381) or TCP
 - **Network**: Camera and server must be on the same network
 
 ## Quick Start
@@ -55,8 +55,8 @@ Edit `config/config.json` with your camera's IP address:
 {
   "camera": {
     "ip": "192.168.1.100",
-    "port": 5678,
-    "protocol": "tcp"
+    "port": 52381,
+    "protocol": "udp"
   },
   "server": {
     "port": 3000
@@ -76,14 +76,63 @@ Or run in the background (Linux/Mac):
 nohup npm start &
 ```
 
-As a Windows service (using PM2):
+### Running as a Windows Service (PM2)
 
-```bash
+PM2 allows the server to start automatically when Windows boots and restart if it crashes.
+
+#### Prerequisites
+
+```powershell
+# Install PM2 globally (run PowerShell as Administrator)
 npm install -g pm2
-pm2 start src/server/index.js --name ptz-control
-pm2 save
-pm2 startup
+npm install -g pm2-windows-startup
 ```
+
+#### Install the Service
+
+```powershell
+# Navigate to the project folder
+cd c:\dev\ptz-web-control
+
+# Start the app with PM2
+pm2 start src/server/index.js --name "ptz-control"
+
+# Save the PM2 process list
+pm2 save
+
+# Configure PM2 to start on Windows boot (run as Administrator)
+pm2-startup install
+```
+
+#### Verify Service is Running
+
+```powershell
+pm2 status        # Check if the app is running
+pm2 logs          # View application logs
+pm2 monit         # Real-time monitoring dashboard
+```
+
+#### Uninstall the Service
+
+```powershell
+# Stop and remove the app from PM2
+pm2 stop ptz-control
+pm2 delete ptz-control
+pm2 save
+
+# Remove PM2 from Windows startup
+pm2-startup uninstall
+```
+
+#### Useful PM2 Commands
+
+| Command                   | Description     |
+| ------------------------- | --------------- |
+| `pm2 start ptz-control`   | Start the app   |
+| `pm2 stop ptz-control`    | Stop the app    |
+| `pm2 restart ptz-control` | Restart the app |
+| `pm2 logs ptz-control`    | View logs       |
+| `pm2 flush`               | Clear all logs  |
 
 ### 5. Open in Browser
 
@@ -171,7 +220,7 @@ In `config/config.json`:
 
 - **Node.js** 18.0.0 or higher
 - Network connectivity to the PTZ camera
-- Ports 3000 (web server) and 5678 (VISCA) accessible
+- Ports 3000 (web server) and 52381 (VISCA/UDP) accessible
 
 ### Client Devices
 
