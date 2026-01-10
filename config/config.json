@@ -9,8 +9,8 @@
     },
     "obs": {
         "host": "localhost",
-        "port": 4444,
-        "password": ""
+        "port": 4455,
+        "password": "Accog6289OBS"
     },
     "vlc": {
         "host": "localhost",

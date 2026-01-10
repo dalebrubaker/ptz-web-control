@@ -8,6 +8,7 @@ A simple, reliable web-based interface for controlling PTZ cameras, OBS Studio s
 ## Features
 
 - **Camera Control**
+
   - 7 camera presets with quick access to predefined positions
   - 8-way directional pad with hold-to-move for pan/tilt
   - Zoom In/Out with continuous zoom
@@ -15,11 +16,13 @@ A simple, reliable web-based interface for controlling PTZ cameras, OBS Studio s
   - Tracking toggle for auto-tracking cameras
 
 - **OBS Studio Control**
+
   - Start/Stop streaming with visual feedback
   - Button turns green when streaming is live
   - Automatic status polling
 
 - **VLC Player Control**
+
   - Play/Stop toggle for media playback
   - Button turns green when media is playing
   - Automatic status polling
@@ -118,25 +121,55 @@ Start streaming manually from OBS first, then test the web button. The button sh
 
 ## VLC Player Setup
 
-### Enable VLC RC Interface
+VLC must be started with the Remote Control (RC) interface enabled. The most reliable method is to create a Windows shortcut.
 
-**Windows:**
-Create a shortcut with this target:
+### Step 1: Create a VLC Shortcut
+
+1. **Right-click on your desktop** → New → Shortcut
+2. For the location, paste the target command (see examples below)
+3. Name it something like **"VLC Walk-in Music"**
+4. **Always launch VLC using this shortcut** when you need remote control
+
+### Step 2: Choose Your Shortcut Target
+
+**Basic (RC interface only):**
+
 ```
-"C:\Program Files\VideoLAN\VLC\vlc.exe" --extraintf rc --rc-host localhost:4212
+"C:\Program Files\VideoLAN\VLC\vlc.exe" --extraintf rc --rc-host localhost:4212 --rc-quiet
 ```
 
-**Or via VLC Preferences:**
-1. Tools → Preferences → Show Settings: All
-2. Interface → Control Interfaces
-3. Check "Remote control interface"
-4. In "Extra interfaces" add `--rc-host localhost:4212`
-5. Save and restart VLC
+**With a music folder (recommended for walk-in music):**
 
-**Linux/Mac:**
-```bash
-vlc --extraintf rc --rc-host localhost:4212
 ```
+"C:\Program Files\VideoLAN\VLC\vlc.exe" --extraintf rc --rc-host localhost:4212 --rc-quiet "C:\Vlc Walk-in Music"
+```
+
+**With shuffle + loop (best for background music):**
+
+```
+"C:\Program Files\VideoLAN\VLC\vlc.exe" --extraintf rc --rc-host localhost:4212 --rc-quiet --loop --random "C:\Vlc Walk-in Music"
+```
+
+### Command Line Flags Reference
+
+| Flag                       | Effect                           |
+| -------------------------- | -------------------------------- |
+| `--extraintf rc`           | Enable remote control interface  |
+| `--rc-host localhost:4212` | Listen on port 4212 for commands |
+| `--rc-quiet`               | Hide the console window          |
+| `--loop`                   | Loop the playlist forever        |
+| `--random`                 | Shuffle/randomize playback order |
+| `--no-video`               | Audio only (no video window)     |
+
+### Step 3: Test the Connection
+
+After launching VLC with your shortcut, open PowerShell and run:
+
+```powershell
+Test-NetConnection -ComputerName localhost -Port 4212
+```
+
+If it shows `TcpTestSucceeded : True`, VLC is ready for remote control.
 
 ### VLC Password (Optional)
 

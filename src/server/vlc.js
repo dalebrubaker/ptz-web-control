@@ -11,12 +11,14 @@ let state = {
     playing: false,
     paused: false
 };
+let hasLoggedConnection = false;
 
 /**
  * Initialize VLC client with configuration
  */
 function init(vlcConfig) {
     config = vlcConfig;
+    hasLoggedConnection = false;
 }
 
 /**
@@ -41,7 +43,12 @@ function executeCommand(command) {
 
         client.connect(config.port, config.host, () => {
             clearTimeout(timeout);
-            console.log(`[VLC] Connected to ${config.host}:${config.port}`);
+            
+            // Log connection only once
+            if (!hasLoggedConnection) {
+                console.log(`[VLC] Connected to ${config.host}:${config.port}`);
+                hasLoggedConnection = true;
+            }
 
             // Send password if configured
             if (config.password) {
