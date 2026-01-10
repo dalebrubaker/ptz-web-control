@@ -1,6 +1,7 @@
 /**
- * PTZ Web Control Server
- * Express server with TCP/UDP VISCA camera control
+ * Media Control Server
+ * Express server with PTZ camera control (VISCA over TCP/UDP),
+ * OBS Studio control (WebSocket), and VLC Player control (RC TCP)
  */
 
 const express = require('express');
@@ -8,6 +9,10 @@ const net = require('net');
 const dgram = require('dgram');
 const path = require('path');
 const fs = require('fs');
+
+// Initialize OBS and VLC clients
+const obs = require('./obs');
+const vlc = require('./vlc');
 
 // Load configuration
 const configPath = path.join(__dirname, '../../config/config.json');
@@ -26,6 +31,14 @@ process.env.VISCA_CAMERA_ADDRESS = String(config.camera.address ?? 1);
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Initialize OBS and VLC with config (if configured)
+if (config.obs) {
+    obs.init({ ...config.obs, enabled: true });
+}
+if (config.vlc) {
+    vlc.init({ ...config.vlc, enabled: true });
+}
 
 /**
  * Helper: Get timestamp for logging
@@ -276,12 +289,127 @@ async function sendPresetWithTracking(trackingPacket, presetPacket) {
  * Return camera and preset configuration (without sensitive details)
  */
 app.get('/api/config', (req, res) => {
-    // Return presets without camera IP for security
+    // Return presets without sensitive data for security
     const publicConfig = {
         presets: config.presets,
-        protocol: PROTOCOL
+        protocol: PROTOCOL,
+        obs: config.obs ? { enabled: true } : { enabled: false },
+        vlc: config.vlc ? { enabled: true } : { enabled: false }
     };
     res.json(publicConfig);
+});
+
+// ============================================================================
+// OBS Studio API Routes
+// ============================================================================
+
+/**
+ * GET /api/obs/status
+ * Return current OBS streaming status
+ */
+app.get('/api/obs/status', async (req, res) => {
+    if (!config.obs) {
+        return res.json({ streaming: false, enabled: false });
+    }
+    try {
+        const status = await obs.getStreamStatus();
+        res.json({ ...status, enabled: true });
+    } catch (error) {
+        res.status(500).json({ streaming: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/obs/command
+ * Execute OBS streaming commands
+ * Body: { action: 'toggleStreaming' | 'startStreaming' | 'stopStreaming' }
+ */
+app.post('/api/obs/command', async (req, res) => {
+    if (!config.obs) {
+        return res.status(503).json({ success: false, error: 'OBS not configured' });
+    }
+
+    const { action } = req.body;
+
+    try {
+        let result;
+        switch (action) {
+            case 'toggleStreaming':
+                result = await obs.toggleStreaming();
+                break;
+            case 'startStreaming':
+                result = await obs.startStreaming();
+                break;
+            case 'stopStreaming':
+                result = await obs.stopStreaming();
+                break;
+            default:
+                return res.status(400).json({ success: false, error: 'Unknown OBS action' });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('OBS API error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ============================================================================
+// VLC Player API Routes
+// ============================================================================
+
+/**
+ * GET /api/vlc/status
+ * Return current VLC playback status
+ */
+app.get('/api/vlc/status', async (req, res) => {
+    if (!config.vlc) {
+        return res.json({ playing: false, paused: false, enabled: false });
+    }
+    try {
+        const status = await vlc.getState();
+        res.json({ ...status, enabled: true });
+    } catch (error) {
+        res.json({ playing: false, paused: false, enabled: true, error: error.message });
+    }
+});
+
+/**
+ * POST /api/vlc/command
+ * Execute VLC playback commands
+ * Body: { action: 'play' | 'pause' | 'stop' | 'toggle' }
+ */
+app.post('/api/vlc/command', async (req, res) => {
+    if (!config.vlc) {
+        return res.status(503).json({ success: false, error: 'VLC not configured' });
+    }
+
+    const { action } = req.body;
+
+    try {
+        let result;
+        switch (action) {
+            case 'play':
+                result = await vlc.play();
+                break;
+            case 'pause':
+                result = await vlc.pause();
+                break;
+            case 'stop':
+                result = await vlc.stop();
+                break;
+            case 'toggle':
+                result = await vlc.toggle();
+                break;
+            default:
+                return res.status(400).json({ success: false, error: 'Unknown VLC action' });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('VLC API error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 /**

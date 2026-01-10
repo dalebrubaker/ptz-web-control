@@ -7,6 +7,16 @@
     "server": {
         "port": 3000
     },
+    "obs": {
+        "host": "localhost",
+        "port": 4444,
+        "password": ""
+    },
+    "vlc": {
+        "host": "localhost",
+        "port": 4212,
+        "password": ""
+    },
     "presets": {
         "stage": {
             "number": 0,

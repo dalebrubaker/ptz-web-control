@@ -1,6 +1,6 @@
 /**
- * PTZ Camera Control - Client-Side JavaScript
- * Handles preset buttons, manual controls, and API communication
+ * Media Control - Client-Side JavaScript
+ * Handles camera presets, manual controls, OBS streaming, and VLC playback
  */
 
 (function() {
@@ -8,7 +8,9 @@
 
     // Configuration loaded from server
     let config = null;
-    let isTracking = false; // Added back to fix ReferenceError
+    let isTracking = false;
+    let obsStreaming = false;
+    let vlcPlaying = false;
 
     // Direction mapping for D-pad
     const DIRECTION_MAP = {
@@ -95,7 +97,6 @@
      */
     async function sendContinuous(action, type, params = {}) {
         try {
-            // logDebug(`Continuous ${action} ${type}`); // Too noisy?
             const response = await fetch('/api/continuous', {
                 method: 'POST',
                 headers: {
@@ -118,10 +119,131 @@
     }
 
     /**
+     * Get OBS streaming status
+     */
+    async function getObsStatus() {
+        try {
+            const response = await fetch('/api/obs/status');
+            const result = await response.json();
+            obsStreaming = result.streaming || false;
+            updateObsButton();
+        } catch (error) {
+            console.error('OBS status error:', error);
+        }
+    }
+
+    /**
+     * Toggle OBS streaming
+     */
+    async function toggleObsStreaming() {
+        try {
+            const btn = document.getElementById('obs-stream');
+            if (btn) btn.style.opacity = '0.7';
+
+            const response = await fetch('/api/obs/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'toggleStreaming' })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Wait a moment for OBS to process, then update status
+                await delay(500);
+                await getObsStatus();
+                showStatus(obsStreaming ? 'Streaming ON' : 'Streaming OFF');
+            } else {
+                throw new Error(result.error || 'OBS command failed');
+            }
+        } catch (error) {
+            console.error('OBS command error:', error);
+            showStatus(error.message, 'error');
+        } finally {
+            const btn = document.getElementById('obs-stream');
+            if (btn) btn.style.opacity = '1';
+        }
+    }
+
+    /**
+     * Update OBS button appearance based on streaming state
+     */
+    function updateObsButton() {
+        const btn = document.getElementById('obs-stream');
+        if (!btn) return;
+
+        if (obsStreaming) {
+            btn.classList.add('streaming');
+            btn.querySelector('.media-label').textContent = 'LIVE';
+        } else {
+            btn.classList.remove('streaming');
+            btn.querySelector('.media-label').textContent = 'STREAM';
+        }
+    }
+
+    /**
+     * Get VLC playback status
+     */
+    async function getVlcStatus() {
+        try {
+            const response = await fetch('/api/vlc/status');
+            const result = await response.json();
+            vlcPlaying = result.playing || false;
+            updateVlcButtons();
+        } catch (error) {
+            console.error('VLC status error:', error);
+        }
+    }
+
+    /**
+     * Send VLC command
+     */
+    async function sendVlcCommand(action) {
+        try {
+            const response = await fetch('/api/vlc/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Wait a moment for VLC to process, then update status
+                await delay(300);
+                await getVlcStatus();
+                showStatus(action === 'toggle' ? 'VLC: ' + (vlcPlaying ? 'Playing' : 'Stopped') : 'VLC: ' + action);
+            } else {
+                throw new Error(result.error || 'VLC command failed');
+            }
+        } catch (error) {
+            console.error('VLC command error:', error);
+            showStatus(error.message, 'error');
+        }
+    }
+
+    /**
+     * Update VLC button appearance based on playback state
+     */
+    function updateVlcButtons() {
+        const btn = document.getElementById('vlc-toggle');
+        if (!btn) return;
+
+        if (vlcPlaying) {
+            btn.classList.add('playing');
+            btn.querySelector('.media-label').textContent = 'PLAY';
+        } else {
+            btn.classList.remove('playing');
+            btn.querySelector('.media-label').textContent = 'PLAY';
+        }
+    }
+
+    /**
      * Activate a preset with Tracking Logic
-     * If tracking is defined:
-     *   On: Call Preset 80 (0x50) -> Wait -> Call Target
-     *   Off: Call Preset 81 (0x51) -> Wait -> Call Target
      */
     async function activatePreset(presetKey) {
         const preset = config.presets[presetKey];
@@ -130,37 +252,34 @@
         // Visual feedback
         const btn = document.querySelector(`[data-preset="${presetKey}"]`);
         if (btn) {
-            btn.style.opacity = '0.7'; 
+            btn.style.opacity = '0.7';
         }
 
         try {
             // 1. Handle Tracking State first if defined
             if (preset.tracking !== undefined) {
-                // FIXED: Preset 80 is ON (0x50), Preset 81 is OFF (0x51)
                 const trackPreset = preset.tracking ? 80 : 81;
-                
+
                 logDebug(`Setting Tracking ${preset.tracking ? 'ON' : 'OFF'} (Preset ${trackPreset})`);
                 await sendCommand('preset', { presetNumber: trackPreset });
-                
+
                 // Update UI state immediately
                 updateTrackingState(preset.tracking);
 
                 // Short delay to ensure camera processes the tracking command
-                // Increased to 800ms to prevent "Command Not Executable" or buffer errors
                 await delay(800);
             }
 
             // 2. Recall the actual target preset
             logDebug(`Recalling Target Preset ${preset.number}`);
             const success = await sendCommand('preset', { presetNumber: preset.number });
-            
+
             if (success) {
                 showStatus(preset.label);
             }
 
         } catch (err) {
             console.error("Error activating preset:", err);
-            // Show specific error if possible, otherwise generic
             showStatus(err.message || "Error", 'error');
         } finally {
             if (btn) btn.style.opacity = '1';
@@ -220,53 +339,49 @@
         }
 
         // Helper for touch/mouse hold
-        // Tracks active state to prevent duplicate events (touch + mouse firing together)
         const attachHoldHandlers = (element, startFn, stopFn) => {
             if (!element) return;
 
             let isActive = false;
             let lastEventTime = 0;
-            const DEBOUNCE_MS = 100; // Prevent rapid-fire events
+            const DEBOUNCE_MS = 100;
 
             const start = (e) => {
                 const now = Date.now();
-                
-                // Prevent rapid-fire events
+
                 if (now - lastEventTime < DEBOUNCE_MS) {
                     e.preventDefault();
                     return;
                 }
                 lastEventTime = now;
 
-                // Prevent touch+mouse duplicate
                 if (isActive) return;
-                
+
                 if (e.type === 'touchstart') e.preventDefault();
-                
+
                 isActive = true;
                 element.classList.add('active');
                 startFn();
             };
-            
+
             const stop = (e) => {
-                // Only stop if we're actually active
                 if (!isActive) return;
-                
+
                 if (e.type === 'touchend' || e.type === 'touchcancel') {
                     e.preventDefault();
                 }
-                
+
                 isActive = false;
                 element.classList.remove('active');
                 stopFn();
             };
 
-            // Touch events (primary for touch devices)
+            // Touch events
             element.addEventListener('touchstart', start, { passive: false });
             element.addEventListener('touchend', stop, { passive: false });
             element.addEventListener('touchcancel', stop, { passive: false });
 
-            // Mouse events (for desktop)
+            // Mouse events
             element.addEventListener('mousedown', start);
             element.addEventListener('mouseup', stop);
             element.addEventListener('mouseleave', stop);
@@ -299,6 +414,43 @@
             () => sendContinuous('start', 'zoomOut', { speed: 4 }),
             () => sendContinuous('stop', 'zoomOut')
         );
+    }
+
+    /**
+     * Initialize OBS/VLC controls
+     */
+    function initMediaControls() {
+        // Check if OBS is enabled
+        if (config.obs && config.obs.enabled) {
+            const obsBtn = document.getElementById('obs-stream');
+            if (obsBtn) {
+                obsBtn.addEventListener('click', toggleObsStreaming);
+                getObsStatus(); // Get initial state
+            }
+        } else {
+            // Hide OBS controls if not enabled
+            const obsSection = document.querySelector('.media-section:first-child');
+            if (obsSection) obsSection.style.display = 'none';
+        }
+
+        // Check if VLC is enabled
+        if (config.vlc && config.vlc.enabled) {
+            const vlcToggleBtn = document.getElementById('vlc-toggle');
+            const vlcStopBtn = document.getElementById('vlc-stop');
+
+            if (vlcToggleBtn) {
+                vlcToggleBtn.addEventListener('click', () => sendVlcCommand('toggle'));
+            }
+            if (vlcStopBtn) {
+                vlcStopBtn.addEventListener('click', () => sendVlcCommand('stop'));
+            }
+
+            getVlcStatus(); // Get initial state
+        } else {
+            // Hide VLC controls if not enabled
+            const vlcSection = document.querySelector('.media-section:last-child');
+            if (vlcSection) vlcSection.style.display = 'none';
+        }
     }
 
     /**
@@ -336,6 +488,13 @@
 
         initPresets();
         initManualControls();
+        initMediaControls();
+
+        // Periodic status updates for OBS/VLC (every 5 seconds)
+        setInterval(() => {
+            if (config.obs && config.obs.enabled) getObsStatus();
+            if (config.vlc && config.vlc.enabled) getVlcStatus();
+        }, 5000);
 
         // Safety: Stop on unload
         window.addEventListener('beforeunload', () => {

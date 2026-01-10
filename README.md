@@ -1,34 +1,45 @@
-# PTZ Web Control
+# Media Control
 
-A simple, reliable web-based interface for controlling PTZ (Pan-Tilt-Zoom) cameras via VISCA over TCP/UDP protocol. Designed for mobile access during live events like church services.
+A simple, reliable web-based interface for controlling PTZ cameras, OBS Studio streaming, and VLC Player playback. Designed for mobile access during live events like church services.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
+
+## Features
+
+- **Camera Control**
+  - 7 camera presets with quick access to predefined positions
+  - 8-way directional pad with hold-to-move for pan/tilt
+  - Zoom In/Out with continuous zoom
+  - Home position reset
+  - Tracking toggle for auto-tracking cameras
+
+- **OBS Studio Control**
+  - Start/Stop streaming with visual feedback
+  - Button turns green when streaming is live
+  - Automatic status polling
+
+- **VLC Player Control**
+  - Play/Stop toggle for media playback
+  - Button turns green when media is playing
+  - Automatic status polling
+
+- **Mobile-First Design**
+  - Large 60px+ touch targets
+  - Dark theme for dim environments
+  - Works on Chrome, Firefox, Safari, Edge (desktop and mobile)
 
 ## Why This Exists
 
 Bitfocus Companion has reliability issues with VISCA camera control - persistent TCP connections can get stuck during services, requiring restarts. This solution uses stateless TCP/UDP requests that can't "hang", providing a more reliable control option.
 
-## Features
-
-- **7 Camera Presets** - Quick access to predefined camera positions
-  - 5 non-tracking presets (Stage, Welcome, Offering, Widest, Baptistry)
-  - 2 tracking presets (Prayer, Podium) with auto-tracking enabled
-- **Manual Controls** - Full pan/tilt/zoom control with:
-  - 8-way directional pad (including diagonals)
-  - Zoom In/Out with hold-to-zoom
-  - Home position reset
-  - Track Start/Stop buttons
-- **Hold-to-Move** - Touch and hold directional/zoom buttons for continuous movement
-- **Mobile-First Design** - Large 60px+ touch targets, dark theme for dim environments
-- **TCP & UDP Support** - Choose your protocol based on network conditions
-- **Modern Browser Support** - Works on Chrome, Firefox, Safari, Edge (desktop and mobile)
-
 ## Hardware Compatibility
 
 - **Camera**: SimplTrack2 / HuddleView (VISCA over IP compatible)
+- **OBS Studio**: v28+ with OBS WebSocket v5
+- **VLC Player**: Any recent version with RC (Remote Control) interface
 - **Protocol**: VISCA over UDP (port 52381) or TCP
-- **Network**: Camera and server must be on the same network
+- **Network**: All devices must be on the same network
 
 ## Quick Start
 
@@ -45,11 +56,11 @@ cd ptz-web-control
 npm install
 ```
 
-**Note**: Only Node.js is required. No build tools, compilers, or full dev environment needed.
+**Note**: Only Node.js is required. No build tools or compilers needed.
 
-### 3. Configure Camera
+### 3. Configure
 
-Edit `config/config.json` with your camera's IP address:
+Edit `config/config.json`:
 
 ```json
 {
@@ -60,6 +71,16 @@ Edit `config/config.json` with your camera's IP address:
   },
   "server": {
     "port": 3000
+  },
+  "obs": {
+    "host": "localhost",
+    "port": 4444,
+    "password": "your-obs-password"
+  },
+  "vlc": {
+    "host": "localhost",
+    "port": 4212,
+    "password": ""
   }
 }
 ```
@@ -76,11 +97,56 @@ Or run in the background (Linux/Mac):
 nohup npm start &
 ```
 
-### Running as a Windows Service (PM2)
+### 5. Open in Browser
+
+- On the server machine: `http://localhost:3000`
+- From other devices: `http://[server-ip]:3000`
+
+## OBS Studio Setup
+
+### Enable OBS WebSocket
+
+1. Open OBS Studio
+2. Go to **Tools → WebSocket Server Settings**
+3. Enable the WebSocket Server
+4. Note the port (default: 4444) and set a password
+5. Update `config/config.json` with your OBS settings
+
+### Verify OBS Connection
+
+Start streaming manually from OBS first, then test the web button. The button should show "LIVE" with a green background when streaming is active.
+
+## VLC Player Setup
+
+### Enable VLC RC Interface
+
+**Windows:**
+Create a shortcut with this target:
+```
+"C:\Program Files\VideoLAN\VLC\vlc.exe" --extraintf rc --rc-host localhost:4212
+```
+
+**Or via VLC Preferences:**
+1. Tools → Preferences → Show Settings: All
+2. Interface → Control Interfaces
+3. Check "Remote control interface"
+4. In "Extra interfaces" add `--rc-host localhost:4212`
+5. Save and restart VLC
+
+**Linux/Mac:**
+```bash
+vlc --extraintf rc --rc-host localhost:4212
+```
+
+### VLC Password (Optional)
+
+If you set a password in VLC, add it to `config/config.json` under `vlc.password`. Leave empty if no password is set.
+
+## Running as a Windows Service (PM2)
 
 PM2 allows the server to start automatically when Windows boots and restart if it crashes.
 
-#### Prerequisites
+### Prerequisites
 
 ```powershell
 # Install PM2 globally (run PowerShell as Administrator)
@@ -88,14 +154,14 @@ npm install -g pm2
 npm install -g pm2-windows-startup
 ```
 
-#### Install the Service
+### Install the Service
 
 ```powershell
 # Navigate to the project folder
 cd c:\dev\ptz-web-control
 
 # Start the app with PM2
-pm2 start src/server/index.js --name "ptz-control"
+pm2 start src/server/index.js --name "media-control"
 
 # Save the PM2 process list
 pm2 save
@@ -104,7 +170,7 @@ pm2 save
 pm2-startup install
 ```
 
-#### Verify Service is Running
+### Verify Service is Running
 
 ```powershell
 pm2 status        # Check if the app is running
@@ -112,15 +178,12 @@ pm2 logs          # View application logs
 pm2 monit         # Real-time monitoring dashboard
 ```
 
-#### Uninstall the Service
+### Uninstall the Service
 
 ```powershell
-# Stop and remove the app from PM2
-pm2 stop ptz-control
-pm2 delete ptz-control
+pm2 stop media-control
+pm2 delete media-control
 pm2 save
-
-# Remove PM2 from Windows startup
 pm2-startup uninstall
 ```
 
@@ -134,35 +197,30 @@ pm2-startup uninstall
 | `pm2 logs ptz-control`    | View logs       |
 | `pm2 flush`               | Clear all logs  |
 
-### 5. Open in Browser
-
-- On the server machine: `http://localhost:3000`
-- From other devices: `http://[server-ip]:3000`
-
 ## Project Structure
 
 ```
 ptz-web-control/
 ├── config/
-│   └── config.json         # Camera and server configuration
+│   └── config.json         # Camera, OBS, VLC, and server configuration
 ├── src/
 │   ├── server/
-│   │   ├── index.js        # Express server + TCP/UDP clients
-│   │   └── visca.js        # VISCA protocol command builders
+│   │   ├── index.js        # Express server + all control clients
+│   │   ├── visca.js        # VISCA protocol command builders
+│   │   ├── obs.js          # OBS WebSocket v5 client
+│   │   └── vlc.js          # VLC RC TCP client
 │   └── public/
-│       ├── index.html      # Presets page
-│       ├── manual.html     # Manual controls page
+│       ├── index.html      # Main control page
 │       ├── css/
-│       │   └── style.css   # Styles (dark theme, mobile-first)
+│       │   └── style.css   # Dark theme, mobile-first styles
 │       └── js/
 │           └── control.js  # Client-side logic
-├── docs/                   # Additional documentation
 └── package.json
 ```
 
 ## Configuration
 
-### Preset Configuration
+### Camera Presets
 
 Presets are defined in `config/config.json`:
 
@@ -183,11 +241,9 @@ Presets are defined in `config/config.json`:
 
 - `number`: The camera's preset number (1-255)
 - `label`: Display text on the button
-- `tracking`: If `true`, enables tracking before recalling preset
+- `tracking`: If `true`, enables auto-tracking before recalling preset
 
 ### Protocol Selection
-
-In `config/config.json`:
 
 ```json
 "camera": {
@@ -200,27 +256,26 @@ In `config/config.json`:
 
 ## Usage
 
-### Presets Page (index.html)
+### Left Panel - Media Controls
 
-- Tap any preset button to recall that camera position
-- Tracking presets automatically enable tracking before moving
-- Non-tracking presets disable tracking before moving
-- Visual feedback confirms command sent
+- **STREAM button**: Toggle OBS streaming on/off. Button turns green with "LIVE" label when streaming.
+- **PLAY button**: Toggle VLC playback on/off. Button turns green when playing.
+- **STOP button**: Stop VLC playback.
 
-### Manual Controls Page (manual.html)
+### Right Panel - Camera Controls
 
-- **D-pad**: Hold to move in any direction (8-way)
+- **Presets**: Tap any preset button to recall that camera position
+- **D-Pad**: Hold to move in any direction (8-way)
 - **Zoom**: Hold Zoom In/Out for continuous zoom
 - **Home**: Tap to return to home position
-- **Track Start/Stop**: Toggle auto-tracking on/off
 
 ## Requirements
 
 ### Server Machine
 
 - **Node.js** 18.0.0 or higher
-- Network connectivity to the PTZ camera
-- Ports 3000 (web server) and 52381 (VISCA/UDP) accessible
+- Network connectivity to camera, OBS, and VLC
+- Ports 3000 (web), 52381 (VISCA), 4444 (OBS), 4212 (VLC) accessible
 
 ### Client Devices
 
@@ -229,18 +284,23 @@ In `config/config.json`:
 
 ## Troubleshooting
 
-### Server won't start
+### OBS button shows but doesn't work
 
-- Check that Node.js is installed: `node --version`
-- Verify port 3000 is not in use by another application
-- Check `config/config.json` is valid JSON
+- Verify OBS WebSocket is enabled in OBS Studio
+- Check the port and password in config match OBS settings
+- Try clicking the button - check server logs for errors
+
+### VLC button shows but doesn't work
+
+- Verify VLC is running with RC interface enabled
+- Check that VLC is listening on port 4212
+- Load media into VLC before using the play button
 
 ### Camera not responding
 
 - Verify camera IP address in config
 - Check network connectivity: `ping [camera-ip]`
 - Try switching protocol (TCP ↔ UDP) in config
-- Check camera's VISCA over IP settings
 
 ### Can't access from other devices
 
@@ -263,4 +323,5 @@ MIT License - free to use and modify.
 ## Acknowledgments
 
 - VISCA protocol specification by Sony
+- OBS WebSocket v5 documentation
 - SimplTrack2/HuddleView camera documentation
