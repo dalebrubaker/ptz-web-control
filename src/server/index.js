@@ -258,6 +258,11 @@ async function sendCommand(packet) {
     }
 }
 
+const REBOOT_DELAY = config.delays?.reboot || 3000;
+const TRACKING_SERVER_DELAY = config.delays?.trackingServer || 50;
+
+// ...
+
 /**
  * Send command with tracking toggle delay
  * @param {Buffer} trackingPacket - Tracking on/off packet
@@ -269,8 +274,8 @@ async function sendPresetWithTracking(trackingPacket, presetPacket) {
         // Send tracking command first
         await sendCommand(trackingPacket);
 
-        // Wait 50ms before sending preset (per spec)
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Wait configured delay before sending preset (per spec)
+        await new Promise(resolve => setTimeout(resolve, TRACKING_SERVER_DELAY));
 
         // Send preset recall
         await sendCommand(presetPacket);
@@ -292,6 +297,7 @@ app.get('/api/config', (req, res) => {
     // Return presets without sensitive data for security
     const publicConfig = {
         title: config.title || 'Media Control',
+        delays: config.delays || { trackingClient: 800 },
         presets: config.presets,
         protocol: PROTOCOL,
         obs: config.obs ? { enabled: true } : { enabled: false },
@@ -551,8 +557,8 @@ app.post('/api/command', async (req, res) => {
                 // 1. Power OFF
                 await sendCommand(visca.buildPowerOff());
                 
-                // 2. Wait 3 seconds
-                await new Promise(r => setTimeout(r, 3000));
+                // 2. Wait configured delay
+                await new Promise(r => setTimeout(r, REBOOT_DELAY));
                 
                 // 3. Power ON
                 packet = visca.buildPowerOn();

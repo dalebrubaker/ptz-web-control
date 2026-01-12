@@ -310,7 +310,8 @@
                 updateTrackingState(preset.tracking);
 
                 // Short delay to ensure camera processes the tracking command
-                await delay(800);
+                const trackingDelay = config.delays?.trackingClient || 800;
+                await delay(trackingDelay);
             }
 
             // 2. Recall the actual target preset

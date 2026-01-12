@@ -5,6 +5,11 @@
         "protocol": "udp"
     },
     "title": "ACCoG Controls",
+    "delays": {
+        "trackingClient": 800,
+        "trackingServer": 50,
+        "reboot": 3000
+    },
     "server": {
         "port": 3000
     },
