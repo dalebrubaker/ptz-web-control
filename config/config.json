@@ -4,6 +4,7 @@
         "port": 52381,
         "protocol": "udp"
     },
+    "title": "ACCoG Controls",
     "server": {
         "port": 3000
     },
@@ -54,12 +55,12 @@
             "tracking": false
         },
         "spare1": {
-            "number": 10,
+            "number": 7,
             "label": "Spare 1",
             "tracking": false
         },
         "spare2": {
-            "number": 11,
+            "number": 8,
             "label": "Spare 2",
             "tracking": false
         }

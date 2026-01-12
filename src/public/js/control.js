@@ -472,6 +472,14 @@
         try {
             const response = await fetch('/api/config');
             config = await response.json();
+            
+            // Set App Title
+            if (config.title) {
+                document.title = config.title;
+                const titleEl = document.getElementById('app-title');
+                if (titleEl) titleEl.textContent = config.title;
+            }
+
             return true;
         } catch (error) {
             console.error('Failed to load config:', error);

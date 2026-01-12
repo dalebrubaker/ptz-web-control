@@ -291,6 +291,7 @@ async function sendPresetWithTracking(trackingPacket, presetPacket) {
 app.get('/api/config', (req, res) => {
     // Return presets without sensitive data for security
     const publicConfig = {
+        title: config.title || 'Media Control',
         presets: config.presets,
         protocol: PROTOCOL,
         obs: config.obs ? { enabled: true } : { enabled: false },
