@@ -4,7 +4,7 @@
         "port": 52381,
         "protocol": "udp"
     },
-    "title": "ACCoG Controls",
+    "title": "ACC Broadcast Control",
     "delays": {
         "trackingClient": 800,
         "trackingServer": 50,
