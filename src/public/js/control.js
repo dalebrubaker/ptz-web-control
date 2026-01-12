@@ -11,6 +11,33 @@
     let isTracking = false;
     let obsStreaming = false;
     let vlcPlaying = false;
+    let activePresetKey = null; // Track active preset
+
+    /**
+     * Update Preset UI state
+     */
+    function updatePresetButtons() {
+        // Clear all active states
+        document.querySelectorAll('.btn-preset').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Activate current
+        if (activePresetKey) {
+            const btn = document.querySelector(`[data-preset="${activePresetKey}"]`);
+            if (btn) btn.classList.add('active');
+        }
+    }
+
+    /**
+     * Clear active preset state (e.g. on manual move)
+     */
+    function clearActivePreset() {
+        if (activePresetKey) {
+            activePresetKey = null;
+            updatePresetButtons();
+        }
+    }
 
     // Direction mapping for D-pad
     const DIRECTION_MAP = {
@@ -266,6 +293,11 @@
             btn.style.opacity = '0.7';
         }
 
+        // Optimistic UI: Set active immediately
+        const previousActive = activePresetKey;
+        activePresetKey = presetKey;
+        updatePresetButtons();
+
         try {
             // 1. Handle Tracking State first if defined
             if (preset.tracking !== undefined) {
@@ -287,11 +319,18 @@
 
             if (success) {
                 showStatus(preset.label);
+            } else {
+                // Revert if command failed
+                activePresetKey = previousActive;
+                updatePresetButtons();
             }
 
         } catch (err) {
             console.error("Error activating preset:", err);
             showStatus(err.message || "Error", 'error');
+            // Revert on error
+            activePresetKey = previousActive;
+            updatePresetButtons();
         } finally {
             if (btn) btn.style.opacity = '1';
         }
@@ -344,6 +383,7 @@
         const homeBtn = document.getElementById('home-btn');
         if (homeBtn) {
             homeBtn.addEventListener('click', async () => {
+                clearActivePreset(); // Manual move clears state
                 const success = await sendCommand('home');
                 if (success) showStatus('Home');
             });
@@ -372,6 +412,7 @@
 
                 isActive = true;
                 element.classList.add('active');
+                clearActivePreset(); // Manual move clears state
                 startFn();
             };
 
