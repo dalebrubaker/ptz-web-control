@@ -52,6 +52,16 @@
             "number": 6,
             "label": "Baptistry",
             "tracking": false
+        },
+        "spare1": {
+            "number": 10,
+            "label": "Spare 1",
+            "tracking": false
+        },
+        "spare2": {
+            "number": 11,
+            "label": "Spare 2",
+            "tracking": false
         }
     }
 }

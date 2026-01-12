@@ -1,6 +1,7 @@
 /**
  * Media Control - Dark Gradient Theme
  * Controls for PTZ Camera, OBS Studio, and VLC Player
+ * Optimized for iPad Portrait (Top Half)
  */
 
 :root {
@@ -13,6 +14,7 @@
     --grad-btn-active: linear-gradient(180deg, #ffd700 0%, #daa520 100%); /* Gold/Yellow for active */
     --grad-streaming: linear-gradient(180deg, #00e676 0%, #00c853 100%); /* Green for streaming */
     --grad-playing: linear-gradient(180deg, #00e676 0%, #00c853 100%); /* Green for playing */
+    --grad-danger: linear-gradient(180deg, #e53935 0%, #c62828 100%); /* Red for danger/reboot */
 
     /* Text */
     --text-primary: #e0e0e0;
@@ -22,9 +24,12 @@
     /* Dimensions */
     --header-height: 48px;
     --gap-size: 10px;
-    --radius-pill: 50px;
     --radius-btn: 8px;
-    --media-panel-width: 160px; /* Width for OBS/VLC controls */
+    
+    /* Control Sizes */
+    --dpad-size: 160px;
+    --btn-icon-size: 60px;
+    --btn-square-size: 70px;
 }
 
 *, *::before, *::after {
@@ -52,13 +57,13 @@ body {
     display: flex;
     flex-direction: column;
     padding: var(--gap-size);
+    gap: var(--gap-size);
 }
 
-/* Compact Header */
+/* Header */
 header {
     height: var(--header-height);
     flex-shrink: 0;
-    margin-bottom: var(--gap-size);
 }
 
 .header-row {
@@ -86,7 +91,43 @@ h1 {
     color: var(--text-secondary);
 }
 
-/* Tracking Indicator LED */
+/* Buttons */
+.btn {
+    border-radius: var(--radius-btn);
+    border: 1px solid rgba(0,0,0,0.5);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--grad-btn);
+    position: relative;
+    font-weight: 700;
+}
+
+.btn:active {
+    box-shadow: 0 2px 3px rgba(0,0,0,0.4);
+    background: var(--grad-btn-active);
+    color: var(--text-active);
+}
+
+.btn-sm {
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    height: 32px;
+}
+
+.btn-danger {
+    background: var(--grad-danger);
+    color: white;
+}
+.btn-danger:active {
+    background: #b71c1c;
+}
+
+/* Tracking Indicator */
 .track-indicator {
     display: flex;
     align-items: center;
@@ -103,15 +144,15 @@ h1 {
 .led {
     width: 10px;
     height: 10px;
-    background-color: #444; /* Off state */
+    background-color: #444; 
     border-radius: 50%;
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
     transition: all 0.3s;
 }
 
 .track-indicator.active .led {
-    background-color: #00ff00; /* Bright Green On */
-    box-shadow: 0 0 5px #00ff00, inset 0 1px 2px rgba(255,255,255,0.5);
+    background-color: #00ff00;
+    box-shadow: 0 0 5px #00ff00;
 }
 
 .track-indicator.active {
@@ -119,208 +160,114 @@ h1 {
     border-color: rgba(0,255,0,0.3);
 }
 
-.status {
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.status.visible { opacity: 1; }
-.status.success { color: #81c784; } /* Soft green */
-.status.error { color: #e57373; }   /* Soft red */
-
-/* Main Grid Layout */
+/* Main Dashboard Grid */
 .dashboard-grid {
     flex: 1;
     display: flex;
+    flex-direction: column;
     gap: 1.5rem;
     overflow: hidden;
-    padding-bottom: 0.5rem;
 }
 
 /* ============================================================================
-   Left Panel: Media Controls (OBS/VLC)
+   Controls Row (Top Half)
    ============================================================================ */
 
-.media-panel {
-    flex: 0 0 var(--media-panel-width);
+.controls-row {
     display: flex;
-    flex-direction: column;
+    justify-content: center;
     align-items: center;
-    padding: 1rem 0;
-    gap: 1.5rem;
+    gap: 2rem;
+    padding: 0.5rem 0;
+    flex-shrink: 0; /* Keep size constant */
 }
 
-.media-section {
-    width: 100%;
+/* Control Groups */
+.control-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    gap: 15px;
+}
+
+/* Media Group */
+.media-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,0,0,0.2);
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.media-label-group {
+    display: none; /* Hide group label, buttons have names now */
+}
+
+.vlc-subgroup {
+    display: flex;
+    flex-direction: row; /* Horizontal for better labeling */
     gap: 12px;
 }
 
-.media-divider {
-    width: 60%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+.vertical-divider {
+    width: 2px;
+    height: 80px;
+    background: linear-gradient(180deg, transparent, #444, transparent);
+    margin: 0 10px;
 }
 
-/* Media Control Buttons */
+/* Media Buttons with Labels */
 .btn-media {
-    width: 100%;
+    width: 70px;
     height: 70px;
-    border-radius: var(--radius-btn);
-    background: var(--grad-btn);
-    border: 1px solid rgba(0,0,0,0.5);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-    color: var(--text-primary);
-    display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
+    gap: 4px;
+    padding: 4px;
 }
 
-.btn-media:active {
-    box-shadow: 0 2px 3px rgba(0,0,0,0.4);
-    background: var(--grad-btn-active);
-    color: var(--text-active);
-}
-
-.media-icon {
+.btn-media .media-icon {
     width: 28px;
     height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.media-icon svg {
-    width: 100%;
-    height: 100%;
-    fill: #888;
+.btn-media .btn-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
-.btn-media:active .media-icon svg {
-    fill: var(--text-active);
-}
-
-.media-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 1px;
-}
-
-/* LED Indicator on media buttons */
-.led-indicator {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 8px;
-    height: 8px;
-    background-color: #444;
-    border-radius: 50%;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
-    transition: all 0.3s;
-}
-
-/* OBS Streaming State */
+/* Active buttons */
 .btn-obs.streaming {
     background: var(--grad-streaming);
     color: var(--text-active);
     border-color: #00c853;
 }
-
-.btn-obs.streaming .media-icon svg {
-    fill: var(--text-active);
-}
-
 .btn-obs.streaming .led-indicator {
-    background-color: #00ff00;
-    box-shadow: 0 0 8px #00ff00, inset 0 1px 2px rgba(255,255,255,0.5);
+    background-color: #fff;
+    box-shadow: 0 0 5px #fff;
 }
+.btn-obs.streaming svg { fill: #000; }
 
-/* VLC Playing State */
 .btn-vlc.playing {
     background: var(--grad-playing);
     color: var(--text-active);
     border-color: #00c853;
 }
-
-.btn-vlc.playing .media-icon svg {
-    fill: var(--text-active);
-}
-
 .btn-vlc.playing .led-indicator {
-    background-color: #00ff00;
-    box-shadow: 0 0 8px #00ff00, inset 0 1px 2px rgba(255,255,255,0.5);
+    background-color: #fff;
+    box-shadow: 0 0 5px #fff;
 }
-
-.btn-vlc.playing .media-label::after {
+.btn-vlc.playing svg { fill: #000; }
+.btn-vlc.playing .btn-label::after {
     content: 'ING';
-    margin-left: 1px;
 }
 
-/* ============================================================================
-   Right Panel: Camera Controls
-   ============================================================================ */
 
-.camera-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 1rem 0;
-    gap: 1.5rem;
-    overflow-y: auto;
-}
-
-/* Pill Buttons (Zoom) */
-.btn-pill {
-    width: 200px;
-    height: 60px;
-    border-radius: var(--radius-pill);
-    background: var(--grad-btn);
-    border: 1px solid rgba(0,0,0,0.5);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.1s;
-}
-
-.btn-pill:active {
-    box-shadow: 0 2px 3px rgba(0,0,0,0.4);
-    background: var(--grad-btn-active);
-    color: var(--text-active);
-}
-
-.btn-pill svg {
-    width: 20px;
-    height: 20px;
-    fill: #4fc3f7; /* Light blue accent icon */
-}
-.btn-pill:active svg {
-    fill: var(--text-active);
-}
-
-/* Circular D-Pad Container */
+/* D-Pad Container */
 .dpad-container {
-    width: 180px;
-    height: 180px;
+    width: var(--dpad-size);
+    height: var(--dpad-size);
     position: relative;
     background: #111;
     border-radius: 50%;
@@ -331,7 +278,6 @@ h1 {
     flex-shrink: 0;
 }
 
-/* Absolute Positioning for Circle Layout */
 .dpad-circle {
     position: relative;
     width: 100%;
@@ -340,8 +286,8 @@ h1 {
 
 .dpad-btn {
     position: absolute;
-    width: 48px;
-    height: 48px;
+    width: 42px;
+    height: 42px;
     background: var(--grad-btn);
     border-radius: 8px;
     border: 1px solid rgba(0,0,0,0.8);
@@ -359,31 +305,57 @@ h1 {
     box-shadow: none;
 }
 
-.dpad-btn svg {
-    width: 24px;
-    height: 24px;
-}
+.dpad-btn svg { width: 24px; height: 24px; }
 
-/* Positioning Directions */
-.dpad-btn.up { top: 12px; left: 50%; transform: translateX(-50%); }
-.dpad-btn.down { bottom: 12px; left: 50%; transform: translateX(-50%); }
-.dpad-btn.left { left: 12px; top: 50%; transform: translateY(-50%); }
-.dpad-btn.right { right: 12px; top: 50%; transform: translateY(-50%); }
+/* Positioning D-Pad Buttons */
+.dpad-btn.up { top: 10px; left: 50%; transform: translateX(-50%); }
+.dpad-btn.down { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.dpad-btn.left { left: 10px; top: 50%; transform: translateY(-50%); }
+.dpad-btn.right { right: 10px; top: 50%; transform: translateY(-50%); }
 .dpad-btn.home {
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    width: 56px; height: 56px;
+    width: 48px; height: 48px;
     border-radius: 50%;
-    font-size: 0.7rem;
     z-index: 10;
 }
 
-/* Presets Grid */
+/* Zoom Group (Vertical) */
+.zoom-group {
+    flex-direction: column;
+    gap: 15px;
+}
+
+.btn-square {
+    width: var(--btn-square-size);
+    height: var(--btn-square-size);
+    border-radius: 12px;
+}
+.btn-square svg {
+    width: 32px; height: 32px;
+    fill: #4fc3f7;
+}
+.btn-square:active svg {
+    fill: #111;
+}
+
+/* ============================================================================
+   Presets Grid (Bottom Half)
+   ============================================================================ */
+
+.presets-container {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
 .presets-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-    align-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); /* Adaptive */
+    gap: 10px;
     width: 100%;
 }
 
@@ -400,9 +372,8 @@ h1 {
     padding: 0.5rem;
     box-shadow: 0 3px 5px rgba(0,0,0,0.4);
     cursor: pointer;
-    font-family: 'Segoe UI', sans-serif;
+    font-size: 0.9rem;
     text-align: center;
-    transition: transform 0.1s;
 }
 
 .btn-preset:active {
@@ -411,102 +382,32 @@ h1 {
 }
 
 .preset-label {
-    font-size: 1rem;
     font-weight: 600;
     text-transform: uppercase;
     line-height: 1.2;
 }
 
-.preset-badge {
-    display: none;
-}
-
 /* Scrollbar styling */
-::-webkit-scrollbar {
-    width: 6px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 3px;
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
 /* Media Queries */
 @media (max-width: 768px) {
-    .dashboard-grid {
-        flex-direction: column;
+    .controls-row {
         gap: 1rem;
     }
-
-    .media-panel {
-        flex: 0 0 auto;
-        flex-direction: row;
-        justify-content: center;
-        padding: 0.5rem;
-    }
-
-    .media-section {
-        flex-direction: row;
-    }
-
-    .media-divider {
-        width: 1px;
-        height: 40px;
-    }
-
-    .btn-media {
-        width: 60px;
-        height: 60px;
-    }
-
-    .media-label {
-        font-size: 0.65rem;
-    }
-
-    .camera-panel {
-        gap: 1rem;
-    }
-
     .dpad-container {
-        width: 140px;
-        height: 140px;
+        width: 140px; height: 140px;
     }
-    .dpad-btn { width: 36px; height: 36px; }
-    .dpad-btn.home { width: 44px; height: 44px; }
-
-    .btn-pill {
-        width: 160px;
-        height: 50px;
-        font-size: 0.8rem;
+    .btn-square {
+        width: 60px; height: 60px;
     }
-
+    .btn-icon {
+        width: 50px; height: 50px;
+    }
+    
     .presets-grid {
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        grid-template-columns: repeat(3, 1fr); /* 3 Columns on iPad Portrait */
     }
-}
-
-@media (max-height: 600px) {
-    .camera-panel { gap: 1rem; }
-}
-
-/* Debug Log */
-.debug-log {
-    margin-top: 10px;
-    height: 100px;
-    background: #000;
-    border: 1px solid #333;
-    border-radius: 4px;
-    padding: 8px;
-    font-family: 'Consolas', monospace;
-    font-size: 0.75rem;
-    color: #0f0;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-}
-.debug-log div {
-    border-bottom: 1px solid #111;
-    padding: 2px 0;
 }

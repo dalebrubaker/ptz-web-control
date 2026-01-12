@@ -543,6 +543,22 @@ app.post('/api/command', async (req, res) => {
                 result = await sendCommand(packet);
                 break;
 
+            case 'reboot':
+                // Power Cycle sequence
+                console.log(`[${logTime()}] Starting reboot sequence (Power OFF -> Wait -> Power ON)...`);
+                
+                // 1. Power OFF
+                await sendCommand(visca.buildPowerOff());
+                
+                // 2. Wait 3 seconds
+                await new Promise(r => setTimeout(r, 3000));
+                
+                // 3. Power ON
+                packet = visca.buildPowerOn();
+                result = await sendCommand(packet);
+                console.log(`[${logTime()}] Reboot sequence complete.`);
+                break;
+
             default:
                 return res.status(400).json({ success: false, error: 'Unknown command type' });
         }

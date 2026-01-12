@@ -448,8 +448,20 @@
             getVlcStatus(); // Get initial state
         } else {
             // Hide VLC controls if not enabled
-            const vlcSection = document.querySelector('.media-section:last-child');
+            const vlcSection = document.querySelector('.vlc-subgroup');
             if (vlcSection) vlcSection.style.display = 'none';
+        }
+    }
+
+    function initSystemApp() {
+        const rebootBtn = document.getElementById('reboot-btn');
+        if (rebootBtn) {
+            rebootBtn.addEventListener('click', async () => {
+                if(confirm('Are you sure you want to reboot the camera?')) {
+                    showStatus('Rebooting...', 'error'); // Use redundant error style for visibility
+                    await sendCommand('reboot');
+                }
+            });
         }
     }
 
@@ -489,6 +501,7 @@
         initPresets();
         initManualControls();
         initMediaControls();
+        initSystemApp();
 
         // Periodic status updates for OBS/VLC (every 5 seconds)
         setInterval(() => {
