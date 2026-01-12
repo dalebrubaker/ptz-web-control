@@ -135,7 +135,16 @@
     /**
      * Toggle OBS streaming
      */
+    /**
+     * Toggle OBS streaming
+     */
     async function toggleObsStreaming() {
+        // Confirmation Prompt
+        const action = obsStreaming ? 'STOP' : 'START';
+        if (!confirm(`Are you sure you want to ${action} streaming?`)) {
+            return;
+        }
+
         try {
             const btn = document.getElementById('obs-stream');
             if (btn) btn.style.opacity = '0.7';
@@ -174,12 +183,13 @@
         const btn = document.getElementById('obs-stream');
         if (!btn) return;
 
+        const label = btn.querySelector('.btn-label');
         if (obsStreaming) {
             btn.classList.add('streaming');
-            btn.querySelector('.media-label').textContent = 'LIVE';
+            if(label) label.textContent = 'LIVE';
         } else {
             btn.classList.remove('streaming');
-            btn.querySelector('.media-label').textContent = 'STREAM';
+            if(label) label.textContent = 'STREAM';
         }
     }
 
@@ -233,12 +243,13 @@
         const btn = document.getElementById('vlc-toggle');
         if (!btn) return;
 
+        const label = btn.querySelector('.btn-label');
         if (vlcPlaying) {
             btn.classList.add('playing');
-            btn.querySelector('.media-label').textContent = 'PLAY';
+            if(label) label.textContent = 'PLAY'; // Logic stays same, just ensuring class is correct
         } else {
             btn.classList.remove('playing');
-            btn.querySelector('.media-label').textContent = 'PLAY';
+            if(label) label.textContent = 'PLAY';
         }
     }
 
