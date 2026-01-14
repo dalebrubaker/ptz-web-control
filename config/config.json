@@ -6,7 +6,7 @@
     },
     "title": "ACC Broadcast Control",
     "delays": {
-        "trackingClient": 800,
+        "trackingClient": 100,
         "trackingServer": 50,
         "reboot": 3000
     },
