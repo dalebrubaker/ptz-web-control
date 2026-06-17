@@ -1,4 +1,4 @@
-# PTZ-UDP-Control Project Setup
+# PTZ-Web-Control Project Setup
 
 ## Project Overview
 Simple, reliable web interface for controlling PTZ camera via UDP/TCP Visca commands.
@@ -15,7 +15,7 @@ Bitfocus Companion has reliability issues with Visca camera control - persistent
 
 ## Project Structure
 ```
-ptz-udp-control/
+ptz-web-control/
 ├── server.js           # Node.js server (TCP/UDP proxy + web server)
 ├── public/
 │   ├── index.html      # Main control interface (presets page)
@@ -82,6 +82,95 @@ button.addEventListener('mouseup', stopMoving);
 {
   "camera": {
     "ip": "192.168.1.100",
+
+## Installation
+
+Prerequisites:
+
+- Node.js v16 or later (LTS)
+- Git
+- (Optional, recommended for production) `pm2` process manager
+
+Quick install (development):
+
+```powershell
+git clone https://github.com/<your-org>/ptz-web-control.git
+cd ptz-web-control
+npm install
+npm start
+```
+
+Notes:
+
+- Edit `config/config.json` to set your camera IP, port, protocol, and server port before starting.
+- The default entry point is `src/server/index.js` and the `npm start` script runs it.
+
+Installing `pm2` (optional, cross-platform):
+
+```bash
+npm install -g pm2
+pm2 start npm --name "ptz-udp-control" -- start
+pm2 save
+```
+
+## Running & Restarting the Service
+
+Development (manual):
+
+- Start: `npm start` (runs in the foreground)
+- Stop: Ctrl+C in the terminal running the process
+- Restart: stop then `npm start` again, or use `nodemon` with `npm run dev` for auto-restart on file changes
+
+Production (recommended options):
+
+1) Using `pm2` (cross-platform):
+
+```bash
+pm2 start npm --name "ptz-web-control" -- start
+pm2 restart ptz-web-control    # restart the service
+pm2 stop ptz-web-control       # stop the service
+pm2 logs ptz-web-control       # view logs
+```
+
+2) Using systemd (Linux): create `/etc/systemd/system/ptz-web-control.service` with:
+
+```ini
+[Unit]
+Description=PTZ UDP Control Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/ptz-web-control
+ExecStart=/usr/bin/npm start
+Restart=always
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Commands to enable and manage:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable ptz-web-control
+sudo systemctl start ptz-web-control
+sudo systemctl restart ptz-web-control   # restart
+sudo journalctl -u ptz-web-control -f    # live logs
+```
+
+Windows (PowerShell) quick restart:
+
+If you launched with `npm start` in a console, close the console (or press Ctrl+C) and start again. For a managed service, use `pm2` as above or create a Windows service wrapper (e.g., NSSM).
+
+Troubleshooting tips:
+
+- If the server port is in use, change `server.port` in `config/config.json` or stop the process using that port.
+- Check logs (console, `pm2 logs`, or `journalctl`) for errors about camera connectivity or port binding.
+- Use `npm run dev` for live reload during development.
+
     "port": 5678,
     "protocol": "tcp"
   },
@@ -103,7 +192,7 @@ button.addEventListener('mouseup', stopMoving);
 ## Next Steps with Claude in VS Code
 
 1. **Open folder in VS Code**:
-   - File → Open Folder → `E:\GitDev\ptz-udp-control`
+  - File → Open Folder → `E:\GitDev\ptz-web-control`
 
 2. **Start Claude Code view**:
    - Open this file (PROJECT_SETUP.md) in the editor
@@ -147,11 +236,11 @@ button.addEventListener('mouseup', stopMoving);
 When ready to publish:
 
 ```bash
-cd E:\GitDev\ptz-udp-control
+cd E:\GitDev\ptz-web-control
 git init
 git add .
-git commit -m "Initial commit: PTZ UDP control interface"
-gh repo create ptz-udp-control --public --source=. --remote=origin --push
+git commit -m "Initial commit: PTZ Web control interface"
+gh repo create ptz-web-control --public --source=. --remote=origin --push
 ```
 
 Add topics: `ptz-camera`, `visca`, `udp`, `church-tech`, `camera-control`

@@ -516,6 +516,36 @@
                 }
             });
         }
+
+        const serviceRestartBtn = document.getElementById('service-restart-btn');
+        if (serviceRestartBtn) {
+            serviceRestartBtn.addEventListener('click', async () => {
+                if (!confirm('Restart the background service? This may briefly interrupt controls.')) return;
+
+                serviceRestartBtn.disabled = true;
+                showStatus('Restarting service...', 'error');
+
+                try {
+                    const resp = await fetch('/api/service', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'restart' })
+                    });
+
+                    const result = await resp.json();
+                    if (result.success) {
+                        showStatus('Service restarted');
+                    } else {
+                        showStatus(result.error || 'Service restart failed', 'error');
+                    }
+                } catch (err) {
+                    console.error('Service restart error', err);
+                    showStatus(err.message || 'Service restart error', 'error');
+                } finally {
+                    serviceRestartBtn.disabled = false;
+                }
+            });
+        }
     }
 
     /**

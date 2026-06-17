@@ -306,6 +306,45 @@ app.get('/api/config', (req, res) => {
     res.json(publicConfig);
 });
 
+/**
+ * POST /api/service
+ * Manage the background service via pm2: { action: 'start'|'restart'|'stop' }
+ * NOTE: This runs shell commands on the host. Restrict to safe actions only.
+ */
+app.post('/api/service', async (req, res) => {
+    const { action } = req.body || {};
+    const allowed = new Set(['start', 'restart', 'stop']);
+    if (!allowed.has(action)) {
+        return res.status(400).json({ success: false, error: 'Invalid action' });
+    }
+
+    // Map actions to pm2 commands for this app name
+    const appName = 'ptz-web-control';
+    const { exec } = require('child_process');
+
+    let cmd;
+    if (action === 'restart') {
+        cmd = `pm2 restart ${appName}`;
+    } else if (action === 'start') {
+        // Start using npm script (safe, same as pm2 start npm --name "ptz-web-control" -- start)
+        cmd = `pm2 start npm --name "${appName}" -- start`;
+    } else if (action === 'stop') {
+        cmd = `pm2 stop ${appName}`;
+    }
+
+    console.log(`[${logTime()}] Service action requested: ${action} -> ${cmd}`);
+
+    exec(cmd, { cwd: path.join(__dirname, '../../') }, (err, stdout, stderr) => {
+        if (err) {
+            console.error('Service command error:', err.message, stderr);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        console.log('Service command output:', stdout);
+        res.json({ success: true, output: stdout });
+    });
+});
+
 // ============================================================================
 // OBS Studio API Routes
 // ============================================================================
