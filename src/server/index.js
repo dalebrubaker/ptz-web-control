@@ -47,6 +47,11 @@ function logTime() {
     return new Date().toISOString().split('T')[1].slice(0, -1);
 }
 
+function isLocalRequest(req) {
+    const remoteAddress = req.socket?.remoteAddress || req.connection?.remoteAddress || '';
+    return remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
+}
+
 function interpretViscaMessage(message) {
     if (!message || message.length === 0) return 'Empty';
     if (message[message.length - 1] !== 0xFF) return 'Unterminated';
@@ -301,7 +306,8 @@ app.get('/api/config', (req, res) => {
         presets: config.presets,
         protocol: PROTOCOL,
         obs: config.obs ? { enabled: true } : { enabled: false },
-        vlc: config.vlc ? { enabled: true } : { enabled: false }
+        vlc: config.vlc ? { enabled: true } : { enabled: false },
+        serviceControlAllowed: isLocalRequest(req)
     };
     res.json(publicConfig);
 });
@@ -316,6 +322,10 @@ app.post('/api/service', async (req, res) => {
     const allowed = new Set(['start', 'restart', 'stop']);
     if (!allowed.has(action)) {
         return res.status(400).json({ success: false, error: 'Invalid action' });
+    }
+
+    if (!isLocalRequest(req)) {
+        return res.status(403).json({ success: false, error: 'Service control only allowed from localhost' });
     }
 
     // Map actions to pm2 commands for this app name

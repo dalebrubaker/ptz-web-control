@@ -519,6 +519,11 @@
 
         const serviceRestartBtn = document.getElementById('service-restart-btn');
         if (serviceRestartBtn) {
+            if (!config.serviceControlAllowed) {
+                serviceRestartBtn.style.display = 'none';
+                return;
+            }
+
             serviceRestartBtn.addEventListener('click', async () => {
                 if (!confirm('Restart the background service? This may briefly interrupt controls.')) return;
 
