@@ -146,6 +146,20 @@
     }
 
     /**
+     * Perform a short discrete continuous command.
+     * Useful for D-pad clicks so the camera moves only a small step.
+     */
+    async function performDiscreteContinuous(type, params = {}, durationMs = 180) {
+        clearActivePreset();
+        const started = await sendContinuous('start', type, params);
+        if (!started) return false;
+
+        await delay(durationMs);
+        await sendContinuous('stop', type);
+        return true;
+    }
+
+    /**
      * Get OBS streaming status
      */
     async function getObsStatus() {
@@ -440,18 +454,25 @@
             element.addEventListener('mouseleave', stop);
         };
 
-        // D-pad buttons
+        // D-pad buttons: discrete click movement for a short directional step.
         const dpadButtons = document.querySelectorAll('.dpad-btn[data-direction]');
         dpadButtons.forEach(btn => {
             const direction = btn.getAttribute('data-direction');
             const dirCode = DIRECTION_MAP[direction];
             if (!dirCode) return;
 
-            attachHoldHandlers(
-                btn,
-                () => sendContinuous('start', 'panTilt', { panSpeed: 6, tiltSpeed: 6, direction: dirCode }),
-                () => sendContinuous('stop', 'panTilt')
-            );
+            btn.addEventListener('click', async () => {
+                const success = await performDiscreteContinuous(
+                    'panTilt',
+                    { panSpeed: 6, tiltSpeed: 6, direction: dirCode },
+                    180
+                );
+
+                if (success) {
+                    const label = direction.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    showStatus(label);
+                }
+            });
         });
 
         // Zoom In
